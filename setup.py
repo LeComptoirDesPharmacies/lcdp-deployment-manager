@@ -1,4 +1,5 @@
 from distutils.core import setup
+
 setup(
   name = 'lcdp_deployment_manager',         # How you named your package folder (MyLib)
   packages = ['lcdp_deployment_manager'],   # Chose the same as "name"
@@ -20,4 +21,5 @@ setup(
     'License :: OSI Approved :: MIT License',   # Again, pick a license
     'Programming Language :: Python :: 3',      #Specify which pyhton versions that you want to support
   ],
+  install_requires=['boto3']
 )
