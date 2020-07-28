@@ -10,9 +10,9 @@ setup(
   url = 'https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager',   # Provide either the link to your github or to your website
   download_url = 'https://github.com/ijennine/lcdp-deployment-manager/archive/v_01.tar.gz',    # I explain this later on
   keywords = ['AWS', 'Python', 'Deployment'],   # Keywords that define your package best
-  install_requires=[            # I get to this in a second
-          'boto3'
-      ],
+  #install_requires=[            # I get to this in a second
+  #       'boto3'
+  #   ],
   classifiers=[
     'Development Status :: 3 - Alpha',      # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package
     'Intended Audience :: Developers',      # Define that your audience are developers
