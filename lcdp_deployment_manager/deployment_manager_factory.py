@@ -12,9 +12,9 @@ ecs_client = boto3.client('ecs')
 elbv2_client = boto3.client('elbv2')
 
 
-def build_deployment_manager(alb_name, cluster_name, img_deploy_tag):
+def build_deployment_manager(alb_name, cluster_name, img_deploy_tag, ssl_enabled):
     alb = alb_manager.get_alb_from_aws(alb_name)
-    listener = alb_manager.get_current_http_listener(alb['LoadBalancerArn'])
+    listener = alb_manager.get_current_listener(alb['LoadBalancerArn'], ssl_enabled)
     rules = alb_manager.get_uncolored_rules(listener)
     prod_color = alb_manager.get_production_color(listener)
     repositories = list(map(lambda x: __build_repository(x, img_deploy_tag), ecr_manager.get_service_repositories_name()))

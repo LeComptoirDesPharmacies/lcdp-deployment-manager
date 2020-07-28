@@ -9,6 +9,13 @@ elbv2_client = boto3.client('elbv2')
 # ~~~~~~~~~~~~~~~~ ALB ~~~~~~~~~~~~~~~~
 
 def get_alb_from_aws(alb_name):
+    """
+    Récupère l'application load balancer sur aws
+    :param alb_name:    Nom du load balance
+    :type alb_name:     str
+    :return:            Load balancer trouvé
+    :rtype:             dict
+    """
     alb_desc = elbv2_client.describe_load_balancers(
         Names=[alb_name]
     )
@@ -17,6 +24,17 @@ def get_alb_from_aws(alb_name):
 
 
 def get_alb_target_group_arn(alb_arn, color, tg_type):
+    """
+    Récupère un target group ayant un type et une couleur précise
+    :param alb_arn: Arn aws de l'Application load balancer cible
+    :type alb_arn:  str
+    :param color:   Couleur recherché
+    :type color:    str
+    :param tg_type: Type recherché
+    :type tg_type:  str
+    :return:        Target group trouvé
+    :rtype:         dict
+    """
     expected = (tg_type.upper(), color.upper())
     target_groups_desc = elbv2_client.describe_target_groups(
         LoadBalancerArn=alb_arn
@@ -28,23 +46,39 @@ def get_alb_target_group_arn(alb_arn, color, tg_type):
 
 # ~~~~~~~~~~~~~~~~ Listener ~~~~~~~~~~~~~~~~
 
-def get_current_http_listener(alb_arn):
+def get_current_listener(alb_arn, ssl_enabled):
     elb_desc = elbv2_client.describe_listeners(
         LoadBalancerArn=alb_arn
     )
-    return __get_http_listener(elb_desc)
+    return __get_listener(elb_desc, ssl_enabled)
 
 
-# Récupère la couleur actuellement en production
 def get_production_color(listener):
+    """
+    Récupère la couleur actuellement en production
+    :param listener:    listener actuel
+    :type listener:     dict
+    :return:            BLUE/GREEN
+    :rtype:             str
+    """
     current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
     return __get_color_from_resource(current_target_group_arn).upper()
 
 
-def __get_http_listener(listeners):
+def __get_listener(listeners, ssl_enabled):
+    """
+    Récupère le listener qui contient les règles de redirection vers les services
+    :param listeners:   liste de listener disponible
+    :type listeners:    dict
+    :param ssl_enabled: indique si le ssl est activé ou non
+    :type ssl_enabled:  bool
+    :return:            listener correspondant au port et protocol donné
+    :rtype:             dict
+    """
+    protocol_port = constant.HTTPS_TUPLE if ssl_enabled else constant.HTTP_TUPLE
     # Careful if we got multiple http listener
     for listener in listeners['Listeners']:
-        if listener['Port'] == 80 and listener['Protocol'] == 'HTTP':
+        if (listener['Protocol'], listener['Port']) == protocol_port:
             return listener
 
 
@@ -56,6 +90,13 @@ def __get_default_forward_target_group_arn_from_listener(listener):
 
 
 def __get_color_from_resource(resource_arn):
+    """
+    Récupère la couleur d'une ressource donnée
+    :param resource_arn:    Ressource AWS arn
+    :type resource_arn:     str
+    :return:                BLUE/GREEN
+    :rtype:                 str
+    """
     tag_desc = elbv2_client.describe_tags(
         ResourceArns=[resource_arn]
     )
@@ -84,4 +125,3 @@ def get_uncolored_rules(listener):
 
 def __is_uncolored_host_header_value(value):
     return constant.BLUE not in value.upper() and constant.GREEN not in value.upper()
-
