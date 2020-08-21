@@ -1,0 +1,17 @@
+Metadata-Version: 1.1
+Name: lcdp-deployment-manager
+Version: 0.2.0
+Summary: High level utilities to get/set AWS infrastructure items on prod
+Home-page: https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager
+Author: Géry THRASIBULE
+Author-email: g.thrasibule@lecomptoirdespharmacies.fr
+License: MIT
+Download-URL: https://github.com/ijennine/lcdp-deployment-manager/archive/v0.2.tar.gz
+Description: High level utilities to get/set AWS infrastructure items on prod
+Keywords: AWS,Python,Deployment
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Build Tools
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
