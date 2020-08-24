@@ -15,7 +15,10 @@ High level utilities to get/set AWS infrastructure items on prod
 
     * https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager
 
-4. Create a link to download your source code using Github:
+4. Edit the setup.py file.
+    > Instructions to edit this file are provided inside the script.
+
+5. Create a link to download your source code using Github:
     
     a. Navigate to your repository.
     
@@ -23,12 +26,7 @@ High level utilities to get/set AWS infrastructure items on prod
     
     c. Define a tag version (preferably use the same version as in the `Setup.py` file).
     
-    d. Add a release title and description and click on "publish release".
-
-5. Edit the setup.py file.
-    > Instructions to edit this file are provided inside the script.
-
-    * `download_url` : Use the github link to your source code. You can find this link in the "releases" tab of your github repo, in the "assets" section of each release.
+    d. Add a release title and description and click on "publish release" (not necessary).
  
 6. Install `setuptools`, `wheel` and `twine` and :
 

@@ -12,7 +12,8 @@ setup(
     author_email='g.thrasibule@lecomptoirdespharmacies.fr',  # Author's E-Mail
     # url: Provide either the link to your github or to your website
     url='https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager',
-    download_url='https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager/archive/v1.0.0.tar.gz',  # Check Readme file
+    # download_url: Up the version (use the same version as in "version")
+    download_url='https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager/archive/v1.0.0.tar.gz',
     keywords=['AWS', 'Python', 'Deployment'],  # Keywords that define your package best
     classifiers=[
         'Development Status :: 3 - Alpha',
