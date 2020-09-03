@@ -109,8 +109,8 @@ class Environment:
                 ServiceNamespace='ecs',
                 ResourceId='service/{}/{}'.format(self.cluster_name, s),
                 ScalableDimension='ecs:service:DesiredCount',
-                MinCapacity=2,
-                # RoleARN='string'
+                # TODO: Use a variable to set "MinCapacity" value
+                MinCapacity=2
             )
         # Wait for all service receive startup
         time.sleep(10)
@@ -123,9 +123,8 @@ class Environment:
                 ServiceNamespace='ecs',
                 ResourceId='service/{}/{}'.format(self.cluster_name, s),
                 ScalableDimension='ecs:service:DesiredCount',
+                # TODO: Use a variable to set "MinCapacity" value
                 MinCapacity=0,
-                MaxCapacity=0,
-                # RoleARN='string'
             )
         # Wait for all service receive shutdown
         time.sleep(10)
