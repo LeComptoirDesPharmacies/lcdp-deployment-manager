@@ -13,7 +13,7 @@ setup(
     # url: Provide either the link to your github or to your website
     url='https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager',
     # download_url: Up the version (use the same version as in "version")
-    download_url='https://github.com/ijennine/lcdp-deployment-manager/archive/v1.0.1.tar.gz',
+    download_url='https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager/archive/v1.0.1.tar.gz',
     keywords=['AWS', 'Python', 'Deployment'],  # Keywords that define your package best
     classifiers=[
         'Development Status :: 3 - Alpha',
