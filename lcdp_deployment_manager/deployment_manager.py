@@ -105,7 +105,7 @@ class Environment:
     def start_up_services(self, desired_count=None):
         for s in self.ecs_services:
             s.start(desired_count)
-            self.application_autoscaling_client.register_scalable_target(
+            response = self.application_autoscaling_client.register_scalable_target(
                 ServiceNamespace='ecs',
                 ResourceId='service/{}/{}'.format(self.cluster_name, s),
                 ScalableDimension='ecs:service:DesiredCount',
@@ -113,6 +113,7 @@ class Environment:
                 MinCapacity=2,
                 MaxCapacity=4
             )
+            print("Started service {}, Updated Capacities, response: {}".format(s, response))
         # Wait for all service receive startup
         time.sleep(10)
 
@@ -120,7 +121,7 @@ class Environment:
     def shutdown_services(self):
         for s in self.ecs_services:
             s.shutdown()
-            self.application_autoscaling_client.register_scalable_target(
+            response = self.application_autoscaling_client.register_scalable_target(
                 ServiceNamespace='ecs',
                 ResourceId='service/{}/{}'.format(self.cluster_name, s),
                 ScalableDimension='ecs:service:DesiredCount',
@@ -128,6 +129,7 @@ class Environment:
                 MinCapacity=0,
                 MaxCapacity=0
             )
+            print("Stopped service {}, Updated Capacities, response: {}".format(s, response))
         # Wait for all service receive shutdown
         time.sleep(10)
 
