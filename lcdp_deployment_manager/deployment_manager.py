@@ -111,6 +111,7 @@ class Environment:
                 ScalableDimension='ecs:service:DesiredCount',
                 # TODO: Use a variable to set MinCapacity value
                 MinCapacity=2,
+                MaxCapacity=4
             )
             print("Started service {}, Updated Capacities, response: {}".format(s, response))
         # Wait for all service receive startup
@@ -126,6 +127,7 @@ class Environment:
                 ScalableDimension='ecs:service:DesiredCount',
                 # TODO: Use a variable to set MinCapacity value
                 MinCapacity=0,
+                MaxCapacity=4
             )
             print("Stopped service {}, Updated Capacities, response: {}".format(s, response))
         # Wait for all service receive shutdown
