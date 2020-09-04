@@ -111,7 +111,7 @@ class Environment:
                 ServiceNamespace='ecs',
                 ResourceId=resource_id,
                 ScalableDimension='ecs:service:DesiredCount',
-                # TODO: Use a variable to set MinCapacity value
+                # TODO: Use a variable to set MinCapacity/MaxCapacity values
                 MinCapacity=2,
                 MaxCapacity=4
             )
@@ -129,7 +129,7 @@ class Environment:
                 ServiceNamespace='ecs',
                 ResourceId=resource_id,
                 ScalableDimension='ecs:service:DesiredCount',
-                # TODO: Use a variable to set MinCapacity value
+                # TODO: Use a variable to set MinCapacity/MaxCapacity values
                 MinCapacity=0,
                 MaxCapacity=4
             )
