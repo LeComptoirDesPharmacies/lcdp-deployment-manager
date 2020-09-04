@@ -107,7 +107,7 @@ class Environment:
             s.start(desired_count)
             response = self.application_autoscaling_client.register_scalable_target(
                 ServiceNamespace='ecs',
-                ResourceId='service/{}/{}'.format(self.cluster_name, s),
+                ResourceId=s.split(':')[5],
                 ScalableDimension='ecs:service:DesiredCount',
                 # TODO: Use a variable to set MinCapacity value
                 MinCapacity=2,
@@ -123,7 +123,7 @@ class Environment:
             s.shutdown()
             response = self.application_autoscaling_client.register_scalable_target(
                 ServiceNamespace='ecs',
-                ResourceId='service/{}/{}'.format(self.cluster_name, s),
+                ResourceId=s.split(':')[5],
                 ScalableDimension='ecs:service:DesiredCount',
                 # TODO: Use a variable to set MinCapacity value
                 MinCapacity=0,
