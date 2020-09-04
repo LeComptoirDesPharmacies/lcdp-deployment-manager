@@ -109,9 +109,8 @@ class Environment:
                 ServiceNamespace='ecs',
                 ResourceId='service/{}/{}'.format(self.cluster_name, s),
                 ScalableDimension='ecs:service:DesiredCount',
-                # TODO: Use a variable to set MinCapacity/MaxCapacity values
+                # TODO: Use a variable to set MinCapacity value
                 MinCapacity=2,
-                #MaxCapacity=4
             )
             print("Started service {}, Updated Capacities, response: {}".format(s, response))
         # Wait for all service receive startup
@@ -125,11 +124,10 @@ class Environment:
                 ServiceNamespace='ecs',
                 ResourceId='service/{}/{}'.format(self.cluster_name, s),
                 ScalableDimension='ecs:service:DesiredCount',
-                # TODO: Use a variable to set MinCapacity/MaxCapacity values
+                # TODO: Use a variable to set MinCapacity value
                 MinCapacity=0,
-                #MaxCapacity=0
             )
-            print("Stopped service {}, Ustar Capacities, response: {}".format(s, response))
+            print("Stopped service {}, Updated Capacities, response: {}".format(s, response))
         # Wait for all service receive shutdown
         time.sleep(10)
 

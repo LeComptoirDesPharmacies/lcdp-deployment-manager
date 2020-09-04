@@ -10,7 +10,7 @@ import boto3
 ecr_client = boto3.client('ecr')
 ecs_client = boto3.client('ecs')
 elbv2_client = boto3.client('elbv2')
-application_autoscaling_client = boto3.client('application_autoscaling')
+application_autoscaling_client = boto3.client('application-autoscaling')
 
 
 def build_deployment_manager(alb_name, cluster_name, img_deploy_tag, ssl_enabled):
