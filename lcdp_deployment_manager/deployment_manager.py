@@ -105,9 +105,11 @@ class Environment:
     def start_up_services(self, desired_count=None):
         for s in self.ecs_services:
             s.start(desired_count)
+            service_arn = str(s)
+            resource_id = service_arn.split(':')[5]
             response = self.application_autoscaling_client.register_scalable_target(
                 ServiceNamespace='ecs',
-                ResourceId=s.split(':')[5],
+                ResourceId=resource_id,
                 ScalableDimension='ecs:service:DesiredCount',
                 # TODO: Use a variable to set MinCapacity value
                 MinCapacity=2,
@@ -121,9 +123,11 @@ class Environment:
     def shutdown_services(self):
         for s in self.ecs_services:
             s.shutdown()
+            service_arn = str(s)
+            resource_id = service_arn.split(':')[5]
             response = self.application_autoscaling_client.register_scalable_target(
                 ServiceNamespace='ecs',
-                ResourceId=s.split(':')[5],
+                ResourceId=resource_id,
                 ScalableDimension='ecs:service:DesiredCount',
                 # TODO: Use a variable to set MinCapacity value
                 MinCapacity=0,
