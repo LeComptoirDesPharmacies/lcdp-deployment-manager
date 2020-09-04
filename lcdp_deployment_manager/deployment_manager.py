@@ -108,9 +108,9 @@ class Environment:
             service_arn = str(s)
             resource_id = service_arn.split(':')[5]
             response = self.application_autoscaling_client.register_scalable_target(
-                ServiceNamespace='ecs',
+                ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
                 ResourceId=resource_id,
-                ScalableDimension='ecs:service:DesiredCount',
+                ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
                 # TODO: Use a variable to set MinCapacity/MaxCapacity values
                 MinCapacity=2,
                 MaxCapacity=4
@@ -126,9 +126,9 @@ class Environment:
             service_arn = str(s)
             resource_id = service_arn.split(':')[5]
             response = self.application_autoscaling_client.register_scalable_target(
-                ServiceNamespace='ecs',
+                ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
                 ResourceId=resource_id,
-                ScalableDimension='ecs:service:DesiredCount',
+                ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
                 # TODO: Use a variable to set MinCapacity/MaxCapacity values
                 MinCapacity=0,
                 MaxCapacity=4

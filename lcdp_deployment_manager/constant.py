@@ -21,8 +21,12 @@ ECR_SERVICE_PREFIX = 'lcdp-'
 DEFAULT_DESIRED_COUNT = 2
 HEALTHCHECK_RETRY_LIMIT = 26
 HEALTHCHECK_SLEEPING_TIME = 30
+ECS_SERVICE_NAMESPACE = 'ecs'
 
 # SES
 FROM_MAIL = 'no-reply@lecomptoirdespharmacies.fr'
 DEVELOPERS_MAIL = 'webmaster@lecomptoirdespharmacies.fr'
 DEFAULT_CHARSET = 'UTF-8'
+
+# ASG
+DEFAULT_SCALABLE_DIMENSION = 'ecs:service:DesiredCount'
