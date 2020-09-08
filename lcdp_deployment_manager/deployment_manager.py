@@ -82,6 +82,7 @@ class DeploymentManager:
 ###
 class Environment:
     ecs_client = None
+    application_autoscaling_client = None
     color = None
     cluster_name = None
     ecs_services = []
@@ -89,9 +90,10 @@ class Environment:
     monolith_target_group_arn = None
     default_target_group_arn = None
 
-    def __init__(self, ecs_client, color, cluster_name, ecs_services,
+    def __init__(self, ecs_client, application_autoscaling_client, color, cluster_name, ecs_services,
                  gw_target_group_arn, monolith_target_group_arn, default_target_group_arn):
         self.ecs_client = ecs_client
+        self.application_autoscaling_client = application_autoscaling_client
         self.color = color
         self.cluster_name = cluster_name
         self.ecs_services = ecs_services
@@ -103,6 +105,17 @@ class Environment:
     def start_up_services(self, desired_count=None):
         for s in self.ecs_services:
             s.start(desired_count)
+            service_arn = str(s)
+            resource_id = service_arn.split(':')[5]
+            response = self.application_autoscaling_client.register_scalable_target(
+                ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
+                ResourceId=resource_id,
+                ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
+                # TODO: Use a variable to set MinCapacity/MaxCapacity values
+                MinCapacity=2,
+                MaxCapacity=4
+            )
+            print("Started service {}, Updated Capacities, response: {}".format(s, response))
         # Wait for all service receive startup
         time.sleep(10)
 
@@ -110,6 +123,17 @@ class Environment:
     def shutdown_services(self):
         for s in self.ecs_services:
             s.shutdown()
+            service_arn = str(s)
+            resource_id = service_arn.split(':')[5]
+            response = self.application_autoscaling_client.register_scalable_target(
+                ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
+                ResourceId=resource_id,
+                ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
+                # TODO: Use a variable to set MinCapacity/MaxCapacity values
+                MinCapacity=0,
+                MaxCapacity=4
+            )
+            print("Stopped service {}, Updated Capacities, response: {}".format(s, response))
         # Wait for all service receive shutdown
         time.sleep(10)
 
