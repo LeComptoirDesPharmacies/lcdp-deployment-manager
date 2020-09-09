@@ -117,7 +117,7 @@ class Environment:
                 ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
                 # TODO: Use a variable to set MinCapacity/MaxCapacity values
                 MinCapacity=2,
-                MaxCapacity=max_capacity
+                MaxCapacity=int(max_capacity)
             )
             print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 2, response: {}"
                   .format(s, max_capacity, response))
@@ -132,15 +132,15 @@ class Environment:
             resource_id = service_arn.split(':')[5]
             tags = common.get_ecs_tags_for_resource(service_arn, self.ecs_client)
             for i in range(len(tags)):
-                if tags[i].get("Key") == "max_capacity":
-                    max_capacity = tags[i].get("Value")
+                if tags[i].get("key") == "max_capacity":
+                    max_capacity = tags[i].get("value")
             response = self.application_autoscaling_client.register_scalable_target(
                 ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
                 ResourceId=resource_id,
                 ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
                 # TODO: Use a variable to set MinCapacity/MaxCapacity values
                 MinCapacity=0,
-                MaxCapacity=max_capacity
+                MaxCapacity=int(max_capacity)
             )
             print("Stopped service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 0, response: {}"
                   .format(s, max_capacity, response))
