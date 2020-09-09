@@ -109,8 +109,8 @@ class Environment:
             resource_id = service_arn.split(':')[5]
             tags = common.get_ecs_tags_for_resource(service_arn, self.ecs_client)
             for i in range(len(tags)):
-                if tags[i].get("Key") == "max_capacity":
-                    max_capacity = tags[i].get("Value")
+                if tags[i].get("key") == "max_capacity":
+                    max_capacity = tags[i].get("value")
             response = self.application_autoscaling_client.register_scalable_target(
                 ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
                 ResourceId=resource_id,
