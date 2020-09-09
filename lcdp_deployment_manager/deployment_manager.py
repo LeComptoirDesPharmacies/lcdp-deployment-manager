@@ -107,7 +107,7 @@ class Environment:
             s.start(desired_count)
             service_arn = str(s)
             resource_id = service_arn.split(':')[5]
-            tags = common.get_tags_from_resource(service_arn, self.ecs_client)
+            tags = common.get_ecs_tags_for_resource(service_arn, self.ecs_client)
             for i in range(len(tags)):
                 if tags[i].get("Key") == "max_capacity":
                     max_capacity = tags[i].get("Value")
@@ -130,7 +130,7 @@ class Environment:
             s.shutdown()
             service_arn = str(s)
             resource_id = service_arn.split(':')[5]
-            tags = common.get_tags_from_resource(service_arn, self.ecs_client)
+            tags = common.get_ecs_tags_for_resource(service_arn, self.ecs_client)
             for i in range(len(tags)):
                 if tags[i].get("Key") == "max_capacity":
                     max_capacity = tags[i].get("Value")
@@ -142,7 +142,7 @@ class Environment:
                 MinCapacity=0,
                 MaxCapacity=max_capacity
             )
-            print("Stopped service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: {}, response: {}"
+            print("Stopped service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 0, response: {}"
                   .format(s, max_capacity, response))
         # Wait for all service receive shutdown
         time.sleep(10)
