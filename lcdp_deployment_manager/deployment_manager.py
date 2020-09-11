@@ -189,9 +189,9 @@ class EcsService:
             desiredCount=desired_count,
             forceNewDeployment=True
         )
-        response = self.__set_min_capacity(desired_count)
-        print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 2, response: {}"
-              .format(self.service_arn, self.max_capacity, response))
+        response = self.__set_register_scalable_target(desired_count)
+        print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: {}, response: {}"
+              .format(self.service_arn, self.max_capacity, desired_count, response))
 
     def shutdown(self):
         print('Shutdown service {}'.format(self.service_arn))
@@ -200,7 +200,7 @@ class EcsService:
             service=self.service_arn,
             desiredCount=0
         )
-        response = self.__set_min_capacity(0)
+        response = self.__set_register_scalable_target(0)
         print("Stopped service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 0, response: {}"
               .format(self.service_arn, self.max_capacity, response))
 
