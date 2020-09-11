@@ -48,8 +48,8 @@ def __build_repository(repository_name, tag):
 
 def __build_environment(color, alb_arn, cluster_name):
     services_arn = ecs_manager.get_services_arn_for_color(color, cluster_name)
-    max_capacities = ecs_manager.get_services_resource_ids_for_colored_resources(services_arn)
-    resource_ids = ecs_manager.get_services_max_capacities_for_colored_resources(services_arn)
+    resource_ids = ecs_manager.get_services_resource_ids_for_colored_resources(services_arn)
+    max_capacities = ecs_manager.get_services_max_capacities_for_colored_resources(services_arn)
 
     ecs_services = list(map(
         lambda x, y, z: EcsService(ecs_client=ecs_client, application_autoscaling_client=application_autoscaling_client,
