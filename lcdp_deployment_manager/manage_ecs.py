@@ -17,21 +17,13 @@ def get_services_arn_for_color(color, cluster_name):
     return colored_services
 
 
-# Récupère les tags des services colorés
-def get_services_max_capacities_for_colored_resources(colored_services):
-    colored_services_max_capacities = []
-    for service_arn in colored_services:
-        tag_description_result = ecs_client.list_tags_for_resource(resourceArn=service_arn)
-        tags = tag_description_result.get('tags')
-        for i in range(len(tags)):
-            if tags[i].get("key") == "max_capacity":
-                colored_services_max_capacities.append(int(tags[i].get("value")))
-    return colored_services_max_capacities
+def get_service_max_capacity_from_service_arn(service_arn):
+    tag_description_result = ecs_client.list_tags_for_resource(resourceArn=service_arn)
+    tags = tag_description_result.get('tags')
+    for i in range(len(tags)):
+        if tags[i].get("key") == "max_capacity":
+            return int(tags[i].get("value"))
 
 
-# Récupère les resources_ids des services colorés
-def get_services_resource_ids_for_colored_resources(colored_services):
-    colored_services_resource_ids = []
-    for service_arn in colored_services:
-        colored_services_resource_ids.append(str(service_arn).split(':')[5])
-    return colored_services_resource_ids
+def get_service_resource_id_from_service_arn(service_arn):
+    return str(service_arn).split(':')[5]
