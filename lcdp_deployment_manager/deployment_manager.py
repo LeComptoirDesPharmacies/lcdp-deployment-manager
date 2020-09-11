@@ -170,7 +170,7 @@ class EcsService:
         )
         return tasks['taskArns']
 
-    def __set_min_capacity(self, min_capacity):
+    def __set_register_scalable_target(self, min_capacity):
         return self.application_autoscaling_client.register_scalable_target(
             ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
             ResourceId=self.resource_id,
@@ -189,7 +189,7 @@ class EcsService:
             desiredCount=desired_count,
             forceNewDeployment=True
         )
-        response = self.__set_min_capacity(2)
+        response = self.__set_min_capacity(desired_count)
         print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 2, response: {}"
               .format(self.service_arn, self.max_capacity, response))
 
