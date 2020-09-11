@@ -52,8 +52,9 @@ def __build_environment(color, alb_arn, cluster_name):
     resource_ids = ecs_manager.get_services_max_capacities_for_colored_resources(services_arn)
 
     ecs_services = list(map(
-        lambda x, y, z: EcsService(ecs_client=ecs_client, cluster_name=cluster_name, service_arn=x, max_capacity=y,
-                                   resource_id=z), services_arn, max_capacities, resource_ids
+        lambda x, y, z: EcsService(ecs_client=ecs_client, application_autoscaling_client=application_autoscaling_client,
+                                   cluster_name=cluster_name, service_arn=x, max_capacity=y, resource_id=z),
+        services_arn, max_capacities, resource_ids
     ))
     return Environment(
         color=color,
