@@ -26,9 +26,3 @@ def get_color_tag(tags):
     for tag in tags:
         if tag['Key'].upper() == TARGET_GROUP_COLOR_TAG_NAME.upper():
             return tag['Value'].upper()
-
-
-# Récupère les tags pour une ressource ECS donnée
-def get_ecs_tags_for_resource(resource_arn, ecs_client):
-    tag_description_result = ecs_client.list_tags_for_resource(resourceArn=resource_arn)
-    return tag_description_result.get('tags')

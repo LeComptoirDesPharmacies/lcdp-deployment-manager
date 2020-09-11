@@ -2,6 +2,7 @@ import time
 from functools import reduce
 from . import constant as constant
 from . import common as common
+from . import manage_ecs as ecs_manager
 
 
 ###
@@ -82,7 +83,6 @@ class DeploymentManager:
 ###
 class Environment:
     ecs_client = None
-    application_autoscaling_client = None
     color = None
     cluster_name = None
     ecs_services = []
@@ -90,10 +90,9 @@ class Environment:
     monolith_target_group_arn = None
     default_target_group_arn = None
 
-    def __init__(self, ecs_client, application_autoscaling_client, color, cluster_name, ecs_services,
+    def __init__(self, ecs_client, color, cluster_name, ecs_services,
                  gw_target_group_arn, monolith_target_group_arn, default_target_group_arn):
         self.ecs_client = ecs_client
-        self.application_autoscaling_client = application_autoscaling_client
         self.color = color
         self.cluster_name = cluster_name
         self.ecs_services = ecs_services
@@ -105,22 +104,6 @@ class Environment:
     def start_up_services(self, desired_count=None):
         for s in self.ecs_services:
             s.start(desired_count)
-            service_arn = str(s)
-            resource_id = service_arn.split(':')[5]
-            tags = common.get_ecs_tags_for_resource(service_arn, self.ecs_client)
-            for i in range(len(tags)):
-                if tags[i].get("key") == "max_capacity":
-                    max_capacity = tags[i].get("value")
-            response = self.application_autoscaling_client.register_scalable_target(
-                ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
-                ResourceId=resource_id,
-                ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
-                # TODO: Use a variable to set MinCapacity/MaxCapacity values
-                MinCapacity=2,
-                MaxCapacity=int(max_capacity)
-            )
-            print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 2, response: {}"
-                  .format(s, max_capacity, response))
         # Wait for all service receive startup
         time.sleep(10)
 
@@ -128,22 +111,6 @@ class Environment:
     def shutdown_services(self):
         for s in self.ecs_services:
             s.shutdown()
-            service_arn = str(s)
-            resource_id = service_arn.split(':')[5]
-            tags = common.get_ecs_tags_for_resource(service_arn, self.ecs_client)
-            for i in range(len(tags)):
-                if tags[i].get("key") == "max_capacity":
-                    max_capacity = tags[i].get("value")
-            response = self.application_autoscaling_client.register_scalable_target(
-                ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
-                ResourceId=resource_id,
-                ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
-                # TODO: Use a variable to set MinCapacity/MaxCapacity values
-                MinCapacity=0,
-                MaxCapacity=int(max_capacity)
-            )
-            print("Stopped service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 0, response: {}"
-                  .format(s, max_capacity, response))
         # Wait for all service receive shutdown
         time.sleep(10)
 
@@ -182,11 +149,17 @@ class EcsService:
     task = []
     ecs_client = None
     service_healthy = False
+    application_autoscaling_client = None
+    max_capacity = None
+    resource_id = None
 
-    def __init__(self, ecs_client, cluster_name, service_arn):
+    def __init__(self, ecs_client,  application_autoscaling_client, cluster_name, service_arn, max_capacity, resource_id):
         self.ecs_client = ecs_client
         self.cluster_name = cluster_name
         self.service_arn = service_arn
+        self.application_autoscaling_client = application_autoscaling_client
+        self.max_capacity = max_capacity
+        self.resource_id = resource_id
 
     def __get_task(self):
         tasks = self.ecs_client.list_tasks(
@@ -201,20 +174,38 @@ class EcsService:
         if not desired_count:
             desired_count = constant.DEFAULT_DESIRED_COUNT
         print('Start service {} with {} instances'.format(self.service_arn, desired_count))
-        return self.ecs_client.update_service(
+        self.ecs_client.update_service(
             cluster=self.cluster_name,
             service=self.service_arn,
             desiredCount=desired_count,
             forceNewDeployment=True
         )
+        response = self.application_autoscaling_client.register_scalable_target(
+            ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
+            ResourceId=self.resource_id,
+            ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
+            MinCapacity=2,
+            MaxCapacity=self.max_capacity
+        )
+        print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 2, response: {}"
+              .format(self.service_arn, self.max_capacity, response))
 
     def shutdown(self):
         print('Shutdown service {}'.format(self.service_arn))
-        return self.ecs_client.update_service(
+        self.ecs_client.update_service(
             cluster=self.cluster_name,
             service=self.service_arn,
             desiredCount=0
         )
+        response = self.application_autoscaling_client.register_scalable_target(
+            ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
+            ResourceId=self.resource_id,
+            ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
+            MinCapacity=0,
+            MaxCapacity=self.max_capacity
+        )
+        print("Stopped service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 0, response: {}"
+              .format(self.service_arn, self.max_capacity, response))
 
     def is_service_healthy(self):
         if not self.service_healthy:
