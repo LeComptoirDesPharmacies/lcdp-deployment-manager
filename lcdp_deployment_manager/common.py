@@ -26,4 +26,3 @@ def get_color_tag(tags):
     for tag in tags:
         if tag['Key'].upper() == TARGET_GROUP_COLOR_TAG_NAME.upper():
             return tag['Value'].upper()
-
