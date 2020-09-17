@@ -1,7 +1,7 @@
 import boto3
+from . import constant as constant
 
 ecs_client = boto3.client('ecs')
-
 
 # Récupère les arn de tous les services ecs d'un cluster pour une couleur donnée
 def get_services_arn_for_color(color, cluster_name):
@@ -20,9 +20,13 @@ def get_services_arn_for_color(color, cluster_name):
 def get_service_max_capacity_from_service_arn(service_arn):
     tag_description_result = ecs_client.list_tags_for_resource(resourceArn=service_arn)
     tags = tag_description_result.get('tags')
+    max_capacity_value = None
     for i in range(len(tags)):
         if tags[i].get("key") == "MaxCapacity":
-            return int(tags[i].get("value"))
+            max_capacity_value = int(tags[i].get("value"))
+            break
+
+    return max_capacity_value or constant.DEFAULT_MAX_CAPACITY
 
 
 def get_service_resource_id_from_service_arn(service_arn):
