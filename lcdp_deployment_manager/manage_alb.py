@@ -1,4 +1,5 @@
 import boto3
+import logging
 from . import common as common
 from . import constant as constant
 
@@ -204,6 +205,24 @@ def set_listener_rule_to_target_group(rule_arn, target_group_arn):
     )
 
 
+def get_listener_rule_target_group_arn(listener_rule_arn):
+    """
+    Gets listener rule target group arn for forward rules
+    :param listener_rule_arn
+    :type listener_rule_arn: str
+    :return: listener rule target group arn or None
+    :rtype str
+    """
+    rule_details = elbv2_client.describe_rules(RuleArns=[listener_rule_arn])
+    target_group_arn = None
+    if len(rule_details['Rules']) > 0:
+        try:
+            target_group_arn = rule_details['Rules'][0]['Actions'][0]['TargetGroupArn']
+        except Exception as e:
+            logging.warning('No foward target group found for listener: ' + listener_rule_arn)
+    return target_group_arn
+
+
 def __is_uncolored_host_header_value(value):
     return constant.BLUE not in value.upper() and constant.GREEN not in value.upper()
 
@@ -245,3 +264,18 @@ def get_running_target_group_arn_by_name_contains(target_group_name_contains):
             if targets['TargetHealthDescriptions'] and len(targets['TargetHealthDescriptions']) > 0:
                 target_group_arn.append(target_group['TargetGroupArn'])
     return target_group_arn
+
+
+def get_target_group_name(target_group_arn):
+    """
+    Gets target group name from target group arn
+    :param target_group_arn:
+    :type target_group_arn: str
+    :return: Target group name or None if not found
+    :rtype: str
+    """
+    target_group_name = None
+    target_group = elbv2_client.describe_target_groups(TargetGroupArns=[target_group_arn])
+    if len(target_group['TargetGroups']) > 0:
+        target_group_name = target_group['TargetGroups'][0]['TargetGroupName']
+    return target_group_name
