@@ -57,6 +57,9 @@ class DeploymentManager:
         if targeted_rule:
             return self.__modify_rule_target_group(targeted_rule, new_target_group_arn)
 
+    def get_rule_with_type_and_color(self, rule_type, rule_color, ):
+        return self.__get_rule_with_type_and_color(rule_type, rule_color)
+
     def __modify_rule_target_group(self, rule, target_group_arn):
         return self.elbv2_client.modify_rule(
             RuleArn=rule['RuleArn'],
