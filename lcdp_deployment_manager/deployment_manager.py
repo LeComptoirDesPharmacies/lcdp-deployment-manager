@@ -53,7 +53,7 @@ class DeploymentManager:
         )
 
     def update_rule_target_group(self, rule_type, rule_color, new_target_group_arn):
-        targeted_rule = self.__get_rule_with_type_and_color(rule_type, rule_color)
+        targeted_rule = self.get_rule_with_type_and_color(rule_type, rule_color)
         if targeted_rule:
             return self.__modify_rule_target_group(targeted_rule, new_target_group_arn)
 
