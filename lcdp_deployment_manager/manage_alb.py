@@ -119,9 +119,10 @@ def get_uncolored_rules(listener):
     uncolored_rules = []
     for rule in rules_desc['Rules']:
         for condition in rule['Conditions']:
-            host = condition['HostHeaderConfig']
-            if all(__is_uncolored_host_header_value(v) for v in host['Values']):
-                uncolored_rules.append(rule)
+            host = condition.get('HostHeaderConfig', None)
+            if host:
+                if all(__is_uncolored_host_header_value(v) for v in host['Values']):
+                    uncolored_rules.append(rule)
     return uncolored_rules
 
 
