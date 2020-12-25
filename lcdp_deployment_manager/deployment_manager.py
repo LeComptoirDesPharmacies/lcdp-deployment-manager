@@ -171,13 +171,14 @@ class EcsService:
         return tasks['taskArns']
 
     def __set_register_scalable_target(self, min_capacity):
-        return self.application_autoscaling_client.register_scalable_target(
-            ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
-            ResourceId=self.resource_id,
-            ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
-            MinCapacity=min_capacity,
-            MaxCapacity=self.max_capacity
-        )
+        if self.application_autoscaling_client:
+            return self.application_autoscaling_client.register_scalable_target(
+                ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
+                ResourceId=self.resource_id,
+                ScalableDimension=constant.DEFAULT_SCALABLE_DIMENSION,
+                MinCapacity=min_capacity,
+                MaxCapacity=self.max_capacity
+            )
 
     def start(self, desired_count=None):
         if not desired_count:
