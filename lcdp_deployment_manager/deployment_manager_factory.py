@@ -45,15 +45,17 @@ def __build_repository(repository_name, tag):
             manifest=image_manifest
         )
 
+def build_service(cluster_name, service_arn):
+    return EcsService(ecs_client=ecs_client, application_autoscaling_client=application_autoscaling_client,
+               cluster_name=cluster_name, service_arn=service_arn,
+               max_capacity=ecs_manager.get_service_max_capacity_from_service_arn(service_arn),
+               resource_id=ecs_manager.get_service_resource_id_from_service_arn(service_arn))
 
 def __build_environment(color, alb_arn, cluster_name):
     services_arn = ecs_manager.get_services_arn_for_color(color, cluster_name)
 
     ecs_services = list(map(
-        lambda x: EcsService(ecs_client=ecs_client, application_autoscaling_client=application_autoscaling_client,
-                             cluster_name=cluster_name, service_arn=x,
-                             max_capacity=ecs_manager.get_service_max_capacity_from_service_arn(x),
-                             resource_id=ecs_manager.get_service_resource_id_from_service_arn(x)),
+        lambda x: build_service(cluster_name, x),
         services_arn
     ))
     return Environment(
