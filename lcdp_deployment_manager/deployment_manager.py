@@ -171,7 +171,7 @@ class EcsService:
         return tasks['taskArns']
 
     def __set_register_scalable_target(self, min_capacity):
-        if self.application_autoscaling_client:
+        try:
             return self.application_autoscaling_client.register_scalable_target(
                 ServiceNamespace=constant.ECS_SERVICE_NAMESPACE,
                 ResourceId=self.resource_id,
@@ -179,6 +179,8 @@ class EcsService:
                 MinCapacity=min_capacity,
                 MaxCapacity=self.max_capacity
             )
+        except Exception as err:
+            print("An exception was raise during creation of new scalable target. Error : {}".format(err))
 
     def start(self, desired_count=None):
         if not desired_count:
