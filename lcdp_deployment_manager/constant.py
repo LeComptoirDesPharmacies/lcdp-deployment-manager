@@ -11,8 +11,8 @@ HTTP_TUPLE = ('HTTP', 80)
 # Target group
 TARGET_GROUP_COLOR_TAG_NAME = 'Color'
 TARGET_GROUP_TYPE_TAG_NAME = 'Type'
+# Default type means 'api gateway'
 TARGET_GROUP_DEFAULT_TYPE = 'default'
-TARGET_GROUP_GATEWAY_TYPE = 'gateway'
 
 # ECR
 ECR_SERVICE_PREFIX = 'lcdp-'

@@ -91,18 +91,14 @@ class Environment:
     color = None
     cluster_name = None
     ecs_services = []
-    gw_target_group_arn = None
-    monolith_target_group_arn = None
     default_target_group_arn = None
 
     def __init__(self, ecs_client, color, cluster_name, ecs_services,
-                 gw_target_group_arn, monolith_target_group_arn, default_target_group_arn):
+                 default_target_group_arn):
         self.ecs_client = ecs_client
         self.color = color
         self.cluster_name = cluster_name
         self.ecs_services = ecs_services
-        self.gw_target_group_arn = gw_target_group_arn
-        self.monolith_target_group_arn = monolith_target_group_arn
         self.default_target_group_arn = default_target_group_arn
 
     # Démarre tous les services

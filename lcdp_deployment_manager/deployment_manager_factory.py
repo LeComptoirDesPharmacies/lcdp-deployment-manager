@@ -63,12 +63,6 @@ def __build_environment(color, alb_arn, cluster_name):
         cluster_name=cluster_name,
         ecs_client=ecs_client,
         ecs_services=[s for s in ecs_services if s],
-        gw_target_group_arn=alb_manager.get_alb_target_group_arn(
-            alb_arn, color, constant.TARGET_GROUP_GATEWAY_TYPE
-        ),
-        monolith_target_group_arn=alb_manager.get_alb_target_group_arn(
-            alb_arn, color, constant.TARGET_GROUP_DEFAULT_TYPE
-        ),
         default_target_group_arn=alb_manager.get_alb_target_group_arn(
             alb_arn, color, constant.TARGET_GROUP_DEFAULT_TYPE
         )
