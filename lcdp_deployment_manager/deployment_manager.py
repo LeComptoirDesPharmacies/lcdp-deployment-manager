@@ -53,10 +53,9 @@ class DeploymentManager:
         )
 
     def update_rule_target_group(self, expected_rule_type, expected_rule_color, new_target_group_arn):
-        for rule in self.rules:
-            targeted_rule = self.get_rule_with_type_and_color(rule, expected_rule_type, expected_rule_color)
-            if targeted_rule:
-                self.__modify_rule_target_group(targeted_rule, new_target_group_arn)
+        targeted_rules = self.get_rules_with_type_and_color(expected_rule_type, expected_rule_color)
+        for targeted_rule in targeted_rules:
+            self.__modify_rule_target_group(targeted_rule, new_target_group_arn)
 
     def __modify_rule_target_group(self, rule, target_group_arn):
         return self.elbv2_client.modify_rule(
@@ -64,13 +63,19 @@ class DeploymentManager:
             Actions=[self.__build_forward_actions(target_group_arn)]
         )
 
-    def get_rule_with_type_and_color(self, rule, expected_type, expected_color):
+    def get_rules_with_type_and_color(self, expected_type, expected_color):
+        return [r for r in self.rules if self.__assert_rule(r, expected_type, expected_color)]
+
+    def __assert_rule(self, rule, expected_type, expected_color):
         expected = (expected_type.upper(), expected_color.upper())
+
         for action in rule['Actions']:
             if action['Type'] == 'forward':
                 tap_tpl = common.get_type_and_color_for_resource(action['TargetGroupArn'], self.elbv2_client)
                 if tap_tpl == expected:
-                    return rule
+                    return True
+
+        return False
 
     # Ajout d'un tag a tous les repository d'un environement
     def add_tag_to_repositories(self, tag):
