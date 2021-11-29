@@ -15,22 +15,30 @@ class DeploymentManager:
     rules = []
     repositories = []
     prod_color = None
-    blue_environment = {}
-    green_environment = {}
+    default_blue_environment = {}
+    maintenance_mode_blue_environment = {}
+    default_green_environment = {}
+    maintenance_mode_green_environment = {}
 
     # Clients
     elbv2_client = None
 
-    def __init__(self, elbv2_client, alb, http_listener, rules, repositories,
-                 prod_color, blue_environment, green_environment):
+    def __init__(self, elbv2_client, alb, http_listener, rules, target_groups, repositories,
+                 prod_color, prod_type,
+                 default_blue_environment, maintenance_mode_blue_environment,
+                 default_green_environment, maintenance_mode_green_environment):
         self.elbv2_client = elbv2_client
         self.alb = alb
         self.http_listener = http_listener
         self.rules = rules
+        self.target_groups = target_groups
         self.repositories = repositories
         self.prod_color = prod_color
-        self.blue_environment = blue_environment
-        self.green_environment = green_environment
+        self.prod_type = prod_type
+        self.default_blue_environment = default_blue_environment
+        self.maintenance_mode_blue_environment = maintenance_mode_blue_environment
+        self.default_green_environment = default_green_environment
+        self.maintenance_mode_green_environment = maintenance_mode_green_environment
 
     # Constuit une action pour le listener
     def __build_forward_actions(self, target_group_arn):
@@ -40,11 +48,33 @@ class DeploymentManager:
             "Order": 1
         }
 
-    def get_production_environment(self):
-        return self.blue_environment if self.prod_color == constant.BLUE else self.green_environment
+    def get_default_production_environment(self):
+        if self.prod_color == constant.BLUE:
+            return self.default_blue_environment
+        elif self.prod_color == constant.GREEN:
+            return self.default_green_environment
+        raise Exception('Unable to get default prod environment...')
 
-    def get_pre_production_environment(self):
-        return self.green_environment if self.prod_color == constant.BLUE else self.blue_environment
+    def get_maintenance_production_environment(self):
+        if self.prod_color == constant.BLUE:
+            return self.maintenance_mode_blue_environment
+        elif self.prod_color == constant.GREEN:
+            return self.maintenance_mode_green_environment
+        raise Exception('Unable to get maintenance mode prod environment...')
+
+    def get_default_pre_production_environment(self):
+        if self.prod_color == constant.GREEN:
+            return self.default_blue_environment
+        elif self.prod_color == constant.BLUE:
+            return self.default_green_environment
+        raise Exception('Unable to get default pre prod environment...')
+
+    def get_maintenance_pre_production_environment(self):
+        if self.prod_color == constant.GREEN:
+            return self.maintenance_mode_blue_environment
+        elif self.prod_color == constant.BLUE:
+            return self.maintenance_mode_green_environment
+        raise Exception('Unable to get maintenance mode pre prod environment...')
 
     def modify_listener_default_target_group(self, target_group_arn):
         return self.elbv2_client.modify_listener(
@@ -57,6 +87,10 @@ class DeploymentManager:
         for targeted_rule in targeted_rules:
             self.__modify_rule_target_group(targeted_rule, new_target_group_arn)
 
+    def update_rules_target_group(self, rules, new_target_group_arn):
+        for rule in rules:
+            self.__modify_rule_target_group(rule, new_target_group_arn)
+
     def __modify_rule_target_group(self, rule, target_group_arn):
         return self.elbv2_client.modify_rule(
             RuleArn=rule['RuleArn'],
@@ -65,6 +99,17 @@ class DeploymentManager:
 
     def get_rules_with_type_and_color(self, expected_type, expected_color):
         return [r for r in self.rules if self.__assert_rule(r, expected_type, expected_color)]
+
+    def get_uncolored_foward_rules(self):
+        uncolored_foward_rules = []
+        for rule in self.rules:
+            for action in rule['Actions']:
+                if action['Type'] == 'forward':
+                    uncolored_foward_rules.append(rule)
+        return uncolored_foward_rules
+
+    def get_target_groups_with_type_and_color(self, expected_type, expected_color):
+        return [tg for tg in self.target_groups if self.__assert_target_group(tg, expected_type, expected_color)]
 
     def __assert_rule(self, rule, expected_type, expected_color):
         expected = (expected_type.upper(), expected_color.upper())
@@ -76,6 +121,11 @@ class DeploymentManager:
                     return True
 
         return False
+
+    def __assert_target_group(self, target_group, expected_type, expected_color):
+
+        return target_group['Type'].upper() == expected_type.upper() \
+               and target_group['Color'].upper() == expected_color.upper()
 
     # Ajout d'un tag a tous les repository d'un environement
     def add_tag_to_repositories(self, tag):
@@ -89,14 +139,16 @@ class DeploymentManager:
 class Environment:
     ecs_client = None
     color = None
+    type = None
     cluster_name = None
     ecs_services = []
     default_target_group_arn = None
 
-    def __init__(self, ecs_client, color, cluster_name, ecs_services,
+    def __init__(self, ecs_client, color, type, cluster_name, ecs_services,
                  default_target_group_arn):
         self.ecs_client = ecs_client
         self.color = color
+        self.type = type
         self.cluster_name = cluster_name
         self.ecs_services = ecs_services
         self.default_target_group_arn = default_target_group_arn

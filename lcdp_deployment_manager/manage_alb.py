@@ -23,35 +23,13 @@ def get_alb_from_aws(alb_name):
     # WARNING: If we got multiple alb
     return alb_desc['LoadBalancers'][0]
 
-
-def get_alb_target_group_arn(alb_arn, color, tg_type):
-    """
-    Récupère un target group ayant un type et une couleur précise
-    :param alb_arn: Arn aws de l'Application load balancer cible
-    :type alb_arn:  str
-    :param color:   Couleur recherché
-    :type color:    str
-    :param tg_type: Type recherché
-    :type tg_type:  str
-    :return:        Target group trouvé
-    :rtype:         dict
-    """
-    expected = (tg_type.upper(), color.upper())
-    target_groups_desc = elbv2_client.describe_target_groups(
-        LoadBalancerArn=alb_arn
-    )
-    for tg in target_groups_desc['TargetGroups']:
-        if expected == common.get_type_and_color_for_resource(tg['TargetGroupArn'], elbv2_client):
-            return tg['TargetGroupArn']
-
-
 # ~~~~~~~~~~~~~~~~ Listener ~~~~~~~~~~~~~~~~
 
 def get_current_listener(alb_arn, ssl_enabled):
-    elb_desc = elbv2_client.describe_listeners(
+    alb_desc = elbv2_client.describe_listeners(
         LoadBalancerArn=alb_arn
     )
-    return __get_listener(elb_desc, ssl_enabled)
+    return __get_listener(alb_desc, ssl_enabled)
 
 
 def get_production_color(listener):
@@ -64,6 +42,18 @@ def get_production_color(listener):
     """
     current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
     return __get_color_from_resource(current_target_group_arn).upper()
+
+
+def get_production_type(listener):
+    """
+    Récupère le type actuellement en production
+    :param listener:    listener actuel
+    :type listener:     dict
+    :return:            default/maintenance
+    :rtype:             str
+    """
+    current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
+    return __get_type_from_resource(current_target_group_arn).upper()
 
 
 def __get_listener(listeners, ssl_enabled):
@@ -90,6 +80,23 @@ def __get_default_forward_target_group_arn_from_listener(listener):
             return action['TargetGroupArn']
 
 
+def __get_tag_value_from_resource(resource_arn, tag_name):
+    """
+    Récupère la couleur d'une ressource donnée
+    :param resource_arn:    Ressource AWS arn
+    :type resource_arn:     str
+    :return:                tag value
+    :rtype:                 str
+    """
+    tag_desc = elbv2_client.describe_tags(
+        ResourceArns=[resource_arn]
+    )
+    tags = tag_desc['TagDescriptions'][0]['Tags']
+    for tag in tags:
+        if tag['Key'] == tag_name:
+            return tag['Value']
+
+
 def __get_color_from_resource(resource_arn):
     """
     Récupère la couleur d'une ressource donnée
@@ -98,13 +105,18 @@ def __get_color_from_resource(resource_arn):
     :return:                BLUE/GREEN
     :rtype:                 str
     """
-    tag_desc = elbv2_client.describe_tags(
-        ResourceArns=[resource_arn]
-    )
-    tags = tag_desc['TagDescriptions'][0]['Tags']
-    for tag in tags:
-        if tag['Key'] == constant.TARGET_GROUP_COLOR_TAG_NAME:
-            return tag['Value']
+    return __get_tag_value_from_resource(resource_arn, constant.TARGET_GROUP_COLOR_TAG_NAME)
+
+
+def __get_type_from_resource(resource_arn):
+    """
+    Récupère la couleur d'une ressource donnée
+    :param resource_arn:    Ressource AWS arn
+    :type resource_arn:     str
+    :return:                default/maintenance
+    :rtype:                 str
+    """
+    return __get_tag_value_from_resource(resource_arn, constant.TARGET_GROUP_TYPE_TAG_NAME)
 
 
 # ~~~~~~~~~~~~~~~~ Rules ~~~~~~~~~~~~~~~~
@@ -126,41 +138,130 @@ def get_uncolored_rules(listener):
     return uncolored_rules
 
 
-def get_listener_rule_target_group_arn(listener_rule_arn):
-    """
-    Gets listener rule target group arn for forward rules
-    :param listener_rule_arn
-    :type listener_rule_arn: str
-    :return: listener rule target group arn or None
-    :rtype str
-    """
-    rule_details = elbv2_client.describe_rules(RuleArns=[listener_rule_arn])
-    target_group_arn = None
-    if len(rule_details['Rules']) > 0:
-        try:
-            target_group_arn = rule_details['Rules'][0]['Actions'][0]['TargetGroupArn']
-        except Exception as e:
-            logging.warning('No foward target group found for listener: ' + listener_rule_arn)
-    return target_group_arn
-
-
 def __is_uncolored_host_header_value(value):
     return constant.BLUE not in value.upper() and constant.GREEN not in value.upper()
 
 
 # ~~~~~~~~~~~~~~~~ TARGET GROUP ~~~~~~~~~~~~~~~~
 
-
-def get_target_group_name(target_group_arn):
+def get_target_group_with_type_and_color(target_groups, color, tg_type):
     """
-    Gets target group name from target group arn
-    :param target_group_arn:
-    :type target_group_arn: str
-    :return: Target group name or None if not found
+    Récupère un target group ayant un type et une couleur précise
+    :param target_groups: Liste des targets groups
+    :type target_groups:  Target group list
+    :param color:   Couleur recherché
+    :type color:    str
+    :param tg_type: Type recherché
+    :type tg_type:  str
+    :return:        Target group trouvé
+    :rtype:         dict
+    """
+    expected = (tg_type.upper(), color.upper())
+
+    for tg in target_groups:
+        if expected == (tg['Type'].upper(), tg['Color'].upper()):
+            return tg
+    raise Exception("No target group found with type {} and color {}".format(tg_type, color))
+
+
+def get_default_and_maintenance_target_groups_by_environment(environment):
+    """
+    Gets target groups of type 'default' or 'maintenance'
+    :param environment:
+    :param type: str
+    :type type: str
+    :param color:
+    :type color: str
+    :return: Target group or empty list if not found
     :rtype: str
     """
-    target_group_name = None
-    target_group = elbv2_client.describe_target_groups(TargetGroupArns=[target_group_arn])
-    if len(target_group['TargetGroups']) > 0:
-        target_group_name = target_group['TargetGroups'][0]['TargetGroupName']
-    return target_group_name
+    if not environment:
+        return []
+    return __get_target_groups_with_types_and_environment(environment, [constant.TARGET_GROUP_DEFAULT_TYPE,
+                                                                        constant.TARGET_GROUP_MAINTENANCE_TYPE])
+
+
+def __get_target_groups_with_types_and_environment(environment, types):
+    """
+    Gets target group from type and color
+    :param environment:
+    :type : str
+    :param types:
+    :type types: list of str
+    :return: Target groups or empty list if not found
+    :rtype: list of target groups
+    """
+    target_groups_with_tags = __get_target_groups_with_tags(__get_all_target_groups_arns())
+    matching_target_group_arns = []
+    matching_target_group_map_with_type_and_color = {}
+    environment_tag = {'Key': 'Environment', 'Value': environment}
+
+    for target_group_with_tags in target_groups_with_tags:
+        tags = target_group_with_tags['Tags']
+        if len(tags) > 0:
+            if environment_tag in tags:
+                target_group_type = None
+                target_group_color = None
+                for tag in tags:
+                    if tag['Key'] == 'Type':
+                        target_group_type = tag['Value']
+                    if tag['Key'] == 'Color':
+                        target_group_color = tag['Value']
+                if target_group_type and target_group_type.upper() in types:
+                    matching_target_group_arns.append(target_group_with_tags['ResourceArn'])
+                    matching_target_group_map_with_type_and_color.update(
+                        {target_group_with_tags['ResourceArn']: {
+                            'Type': target_group_type,
+                            'Color': target_group_color
+                        }})
+
+    if len(matching_target_group_arns) > 0:
+        matching_target_groups = __get_all_target_groups_by_arns(matching_target_group_arns)
+        for matching_target_group in matching_target_groups:
+            matching_target_group.update(
+                matching_target_group_map_with_type_and_color[matching_target_group['TargetGroupArn']])
+    else:
+        matching_target_groups = []
+
+    return matching_target_groups
+
+
+def __get_target_groups_with_tags(target_groups_arns):
+    target_groups_with_tags = []
+    target_groups_number = len(target_groups_arns)
+    i = 0
+    while i < target_groups_number:
+        target_groups_with_tags \
+            .extend(elbv2_client.describe_tags(ResourceArns=target_groups_arns[i:i + 20])['TagDescriptions'])
+        i += 20
+    return target_groups_with_tags
+
+
+def __get_all_target_groups_arns():
+    """
+    Gets target groups arns
+    :return: Target groups arns or empty list if not found
+    :rtype: list of str
+    """
+    target_groups = __get_all_target_groups()
+    return [target_group['TargetGroupArn'] for target_group in target_groups]
+
+
+def __get_all_target_groups():
+    """
+    Gets target groups
+    :return: Target groups or empty list if not found
+    :rtype: list or target groups
+    """
+    return elbv2_client.describe_target_groups()['TargetGroups']
+
+
+def __get_all_target_groups_by_arns(arns):
+    """
+    Gets target groups
+    :param arns:
+    :param arns: list of str
+    :return: Target groups or empty list if not found
+    :rtype: list or target groups
+    """
+    return elbv2_client.describe_target_groups(TargetGroupArns=arns)['TargetGroups']
