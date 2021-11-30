@@ -5,6 +5,7 @@ from . import constant as constant
 
 # Client
 elbv2_client = boto3.client('elbv2')
+tagging_client = boto3.client('resourcegroupstaggingapi')
 
 
 # ~~~~~~~~~~~~~~~~ ALB ~~~~~~~~~~~~~~~~
@@ -144,124 +145,48 @@ def __is_uncolored_host_header_value(value):
 
 # ~~~~~~~~~~~~~~~~ TARGET GROUP ~~~~~~~~~~~~~~~~
 
-def get_target_group_with_type_and_color(target_groups, color, tg_type):
+def get_target_group_with_type_color_and_environment(tg_type, color, environment):
     """
     Récupère un target group ayant un type et une couleur précise
-    :param target_groups: Liste des targets groups
-    :type target_groups:  Target group list
-    :param color:   Couleur recherché
-    :type color:    str
     :param tg_type: Type recherché
     :type tg_type:  str
+    :param color:   Couleur recherché
+    :type color:    str
+    :param environment: Environment
+    :type environment:  str
     :return:        Target group trouvé
     :rtype:         dict
     """
-    expected = (tg_type.upper(), color.upper())
 
-    for tg in target_groups:
-        if expected == (tg['Type'].upper(), tg['Color'].upper()):
-            return tg
-    raise Exception("No target group found with type {} and color {}".format(tg_type, color))
+    response = tagging_client.get_resources(
+        TagFilters=[
+            {
+                'Key': 'Color',
+                'Values': [
+                    color.lower(),
+                ]
+            },
+            {
+                'Key': 'Type',
+                'Values': [
+                    tg_type.lower(),
+                ]
+            },
+            {
+                'Key': 'Environment',
+                'Values': [
+                    environment.lower(),
+                ]
+            }
+        ],
+        ResourceTypeFilters=[
+            'elasticloadbalancing:targetgroup',
+        ],
+    )
 
+    if len(response['ResourceTagMappingList']) != 1:
+        raise Exception('Expected one target group with type {}, color {}, and environment {}. But found {}'
+                        .format(tg_type, color, environment, str(len(response['ResourceTagMappingList']))))
 
-def get_default_and_maintenance_target_groups_by_environment(environment):
-    """
-    Gets target groups of type 'default' or 'maintenance'
-    :param environment:
-    :param type: str
-    :type type: str
-    :param color:
-    :type color: str
-    :return: Target group or empty list if not found
-    :rtype: str
-    """
-    if not environment:
-        return []
-    return __get_target_groups_with_types_and_environment(environment, [constant.TARGET_GROUP_DEFAULT_TYPE,
-                                                                        constant.TARGET_GROUP_MAINTENANCE_TYPE])
-
-
-def __get_target_groups_with_types_and_environment(environment, types):
-    """
-    Gets target group from type and color
-    :param environment:
-    :type : str
-    :param types:
-    :type types: list of str
-    :return: Target groups or empty list if not found
-    :rtype: list of target groups
-    """
-    target_groups_with_tags = __get_target_groups_with_tags(__get_all_target_groups_arns())
-    matching_target_group_arns = []
-    matching_target_group_map_with_type_and_color = {}
-    environment_tag = {'Key': 'Environment', 'Value': environment}
-
-    for target_group_with_tags in target_groups_with_tags:
-        tags = target_group_with_tags['Tags']
-        if len(tags) > 0:
-            if environment_tag in tags:
-                target_group_type = None
-                target_group_color = None
-                for tag in tags:
-                    if tag['Key'] == 'Type':
-                        target_group_type = tag['Value']
-                    if tag['Key'] == 'Color':
-                        target_group_color = tag['Value']
-                if target_group_type and target_group_type.upper() in types:
-                    matching_target_group_arns.append(target_group_with_tags['ResourceArn'])
-                    matching_target_group_map_with_type_and_color.update(
-                        {target_group_with_tags['ResourceArn']: {
-                            'Type': target_group_type,
-                            'Color': target_group_color
-                        }})
-
-    if len(matching_target_group_arns) > 0:
-        matching_target_groups = __get_all_target_groups_by_arns(matching_target_group_arns)
-        for matching_target_group in matching_target_groups:
-            matching_target_group.update(
-                matching_target_group_map_with_type_and_color[matching_target_group['TargetGroupArn']])
-    else:
-        matching_target_groups = []
-
-    return matching_target_groups
-
-
-def __get_target_groups_with_tags(target_groups_arns):
-    target_groups_with_tags = []
-    target_groups_number = len(target_groups_arns)
-    i = 0
-    while i < target_groups_number:
-        target_groups_with_tags \
-            .extend(elbv2_client.describe_tags(ResourceArns=target_groups_arns[i:i + 20])['TagDescriptions'])
-        i += 20
-    return target_groups_with_tags
-
-
-def __get_all_target_groups_arns():
-    """
-    Gets target groups arns
-    :return: Target groups arns or empty list if not found
-    :rtype: list of str
-    """
-    target_groups = __get_all_target_groups()
-    return [target_group['TargetGroupArn'] for target_group in target_groups]
-
-
-def __get_all_target_groups():
-    """
-    Gets target groups
-    :return: Target groups or empty list if not found
-    :rtype: list or target groups
-    """
-    return elbv2_client.describe_target_groups()['TargetGroups']
-
-
-def __get_all_target_groups_by_arns(arns):
-    """
-    Gets target groups
-    :param arns:
-    :param arns: list of str
-    :return: Target groups or empty list if not found
-    :rtype: list or target groups
-    """
-    return elbv2_client.describe_target_groups(TargetGroupArns=arns)['TargetGroups']
+    print("target_group: -----------------" + str(response['ResourceTagMappingList'][0]))
+    return response['ResourceTagMappingList'][0]['ResourceARN']

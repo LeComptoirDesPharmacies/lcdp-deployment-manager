@@ -1,4 +1,3 @@
-from .constant import *
 
 
 # Démarre tous les services d'un environement et attend qu'il soit entièrement up
@@ -12,7 +11,7 @@ def do_balancing(deployment_manager, from_environment, to_environment):
     print("Do balancing from environment {} to environment {}".format(from_environment.color, to_environment.color))
     deployment_manager.modify_listener_default_target_group(to_environment.default_target_group_arn)
     deployment_manager.update_rule_target_group(
-        expected_rule_type=from_environment.type,
+        expected_rule_type=from_environment.target_group_type,
         expected_rule_color=from_environment.color,
         new_target_group_arn=to_environment.default_target_group_arn
     )
