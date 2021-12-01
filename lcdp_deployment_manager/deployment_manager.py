@@ -21,7 +21,7 @@ class DeploymentManager:
     elbv2_client = None
 
     def __init__(self, elbv2_client, alb, http_listener, rules, repositories,
-                 prod_color, prod_type,
+                 prod_color, current_target_group_type,
                  blue_environment,
                  green_environment):
         self.elbv2_client = elbv2_client
@@ -30,7 +30,7 @@ class DeploymentManager:
         self.rules = rules
         self.repositories = repositories
         self.prod_color = prod_color
-        self.prod_type = prod_type
+        self.current_target_group_type = current_target_group_type
         self.blue_environment = blue_environment
         self.green_environment = green_environment
 
@@ -80,13 +80,13 @@ class DeploymentManager:
     def get_rules_with_type_and_color(self, expected_type, expected_color):
         return [r for r in self.rules if self.__assert_rule(r, expected_type, expected_color)]
 
-    def get_uncolored_forward_rules(self):
-        uncolored_forward_rules = []
+    def get_forward_rules(self):
+        forward_rules = []
         for rule in self.rules:
             for action in rule['Actions']:
                 if action['Type'] == 'forward':
-                    uncolored_forward_rules.append(rule)
-        return uncolored_forward_rules
+                    forward_rules.append(rule)
+        return forward_rules
 
     def __assert_rule(self, rule, expected_type, expected_color):
         expected = (expected_type.upper(), expected_color.upper())
@@ -119,16 +119,16 @@ class Environment:
     target_group_type = None
     cluster_name = None
     ecs_services = []
-    default_target_group_arn = None
+    target_group_arn = None
 
     def __init__(self, ecs_client, color, target_group_type, cluster_name, ecs_services,
-                 default_target_group_arn):
+                 target_group_arn):
         self.ecs_client = ecs_client
         self.color = color
         self.target_group_type = target_group_type
         self.cluster_name = cluster_name
         self.ecs_services = ecs_services
-        self.default_target_group_arn = default_target_group_arn
+        self.target_group_arn = target_group_arn
 
     # Démarre tous les services
     def start_up_services(self, desired_count=None):

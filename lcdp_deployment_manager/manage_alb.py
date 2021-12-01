@@ -83,7 +83,7 @@ def __get_default_forward_target_group_arn_from_listener(listener):
 
 def __get_tag_value_from_resource(resource_arn, tag_name):
     """
-    Récupère la couleur d'une ressource donnée
+    Récupère les tags d'une ressource donnée
     :param resource_arn:    Ressource AWS arn
     :type resource_arn:     str
     :return:                tag value
@@ -111,7 +111,7 @@ def __get_color_from_resource(resource_arn):
 
 def __get_type_from_resource(resource_arn):
     """
-    Récupère la couleur d'une ressource donnée
+    Récupère le type d'une ressource donnée
     :param resource_arn:    Ressource AWS arn
     :type resource_arn:     str
     :return:                default/maintenance
@@ -145,15 +145,15 @@ def __is_uncolored_host_header_value(value):
 
 # ~~~~~~~~~~~~~~~~ TARGET GROUP ~~~~~~~~~~~~~~~~
 
-def get_target_group_with_type_color_and_environment(tg_type, color, environment):
+def get_target_group_with_type_color_and_workspace(tg_type, color, workspace):
     """
     Récupère un target group ayant un type et une couleur précise
     :param tg_type: Type recherché
     :type tg_type:  str
     :param color:   Couleur recherché
     :type color:    str
-    :param environment: Environment
-    :type environment:  str
+    :param workspace: Workspace
+    :type workspace:  str
     :return:        Target group trouvé
     :rtype:         dict
     """
@@ -173,9 +173,9 @@ def get_target_group_with_type_color_and_environment(tg_type, color, environment
                 ]
             },
             {
-                'Key': 'Environment',
+                'Key': 'Workspace',
                 'Values': [
-                    environment.lower(),
+                    workspace.lower(),
                 ]
             }
         ],
@@ -185,8 +185,7 @@ def get_target_group_with_type_color_and_environment(tg_type, color, environment
     )
 
     if len(response['ResourceTagMappingList']) != 1:
-        raise Exception('Expected one target group with type {}, color {}, and environment {}. But found {}'
-                        .format(tg_type, color, environment, str(len(response['ResourceTagMappingList']))))
+        raise Exception('Expected one target group with type {}, color {}, and workspace {}. But found {}'
+                        .format(tg_type, color, workspace, str(len(response['ResourceTagMappingList']))))
 
-    print("target_group: -----------------" + str(response['ResourceTagMappingList'][0]))
     return response['ResourceTagMappingList'][0]['ResourceARN']

@@ -13,18 +13,18 @@ elbv2_client = boto3.client('elbv2')
 application_autoscaling_client = boto3.client('application-autoscaling')
 
 
-def build_deployment_manager(alb_name, cluster_name, img_deploy_tag, ssl_enabled, environment,):
+def build_deployment_manager(alb_name, cluster_name, img_deploy_tag, ssl_enabled, workspace):
     alb = alb_manager.get_alb_from_aws(alb_name)
     listener = alb_manager.get_current_listener(alb['LoadBalancerArn'], ssl_enabled)
     rules = alb_manager.get_uncolored_rules(listener)
     prod_color = alb_manager.get_production_color(listener)
-    prod_type = alb_manager.get_production_type(listener)
+    current_target_group_type = alb_manager.get_production_type(listener)
     repositories = list(
         map(lambda x: __build_repository(x, img_deploy_tag), ecr_manager.get_service_repositories_name()))
-    green_environment = __build_environment(constant.GREEN, prod_type,
-                                            cluster_name, environment)
-    blue_environment = __build_environment(constant.BLUE, prod_type,
-                                           cluster_name, environment)
+    green_environment = __build_environment(constant.GREEN, current_target_group_type,
+                                            cluster_name, workspace)
+    blue_environment = __build_environment(constant.BLUE, current_target_group_type,
+                                           cluster_name, workspace)
 
     return DeploymentManager(
         elbv2_client=elbv2_client,
@@ -32,7 +32,7 @@ def build_deployment_manager(alb_name, cluster_name, img_deploy_tag, ssl_enabled
         http_listener=listener,
         rules=[r for r in rules if r],
         prod_color=prod_color,
-        prod_type=prod_type,
+        current_target_group_type=current_target_group_type,
         repositories=[r for r in repositories if r],
         green_environment=green_environment,
         blue_environment=blue_environment,
@@ -58,7 +58,7 @@ def build_service(cluster_name, service_arn):
                       resource_id=ecs_manager.get_service_resource_id_from_service_arn(service_arn))
 
 
-def __build_environment(color, target_group_type, cluster_name, environment):
+def __build_environment(color, target_group_type, cluster_name, workspace):
     services_arn = ecs_manager.get_services_arn_for_color(color, cluster_name)
     ecs_services = list(map(
         lambda x: build_service(cluster_name, x),
@@ -71,7 +71,7 @@ def __build_environment(color, target_group_type, cluster_name, environment):
         cluster_name=cluster_name,
         ecs_client=ecs_client,
         ecs_services=[s for s in ecs_services if s],
-        default_target_group_arn=alb_manager.get_target_group_with_type_color_and_environment(
-            target_group_type, color, environment
+        target_group_arn=alb_manager.get_target_group_with_type_color_and_workspace(
+            target_group_type, color, workspace
         )
     )
