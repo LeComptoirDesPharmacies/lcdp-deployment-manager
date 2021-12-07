@@ -5,6 +5,7 @@ from . import constant as constant
 
 # Client
 elbv2_client = boto3.client('elbv2')
+tagging_client = boto3.client('resourcegroupstaggingapi')
 
 
 # ~~~~~~~~~~~~~~~~ ALB ~~~~~~~~~~~~~~~~
@@ -23,35 +24,13 @@ def get_alb_from_aws(alb_name):
     # WARNING: If we got multiple alb
     return alb_desc['LoadBalancers'][0]
 
-
-def get_alb_target_group_arn(alb_arn, color, tg_type):
-    """
-    Récupère un target group ayant un type et une couleur précise
-    :param alb_arn: Arn aws de l'Application load balancer cible
-    :type alb_arn:  str
-    :param color:   Couleur recherché
-    :type color:    str
-    :param tg_type: Type recherché
-    :type tg_type:  str
-    :return:        Target group trouvé
-    :rtype:         dict
-    """
-    expected = (tg_type.upper(), color.upper())
-    target_groups_desc = elbv2_client.describe_target_groups(
-        LoadBalancerArn=alb_arn
-    )
-    for tg in target_groups_desc['TargetGroups']:
-        if expected == common.get_type_and_color_for_resource(tg['TargetGroupArn'], elbv2_client):
-            return tg['TargetGroupArn']
-
-
 # ~~~~~~~~~~~~~~~~ Listener ~~~~~~~~~~~~~~~~
 
 def get_current_listener(alb_arn, ssl_enabled):
-    elb_desc = elbv2_client.describe_listeners(
+    alb_desc = elbv2_client.describe_listeners(
         LoadBalancerArn=alb_arn
     )
-    return __get_listener(elb_desc, ssl_enabled)
+    return __get_listener(alb_desc, ssl_enabled)
 
 
 def get_production_color(listener):
@@ -64,6 +43,18 @@ def get_production_color(listener):
     """
     current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
     return __get_color_from_resource(current_target_group_arn).upper()
+
+
+def get_production_type(listener):
+    """
+    Récupère le type actuellement en production
+    :param listener:    listener actuel
+    :type listener:     dict
+    :return:            default/maintenance
+    :rtype:             str
+    """
+    current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
+    return __get_type_from_resource(current_target_group_arn).upper()
 
 
 def __get_listener(listeners, ssl_enabled):
@@ -90,6 +81,23 @@ def __get_default_forward_target_group_arn_from_listener(listener):
             return action['TargetGroupArn']
 
 
+def __get_tag_value_from_resource(resource_arn, tag_name):
+    """
+    Récupère les tags d'une ressource donnée
+    :param resource_arn:    Ressource AWS arn
+    :type resource_arn:     str
+    :return:                tag value
+    :rtype:                 str
+    """
+    tag_desc = elbv2_client.describe_tags(
+        ResourceArns=[resource_arn]
+    )
+    tags = tag_desc['TagDescriptions'][0]['Tags']
+    for tag in tags:
+        if tag['Key'] == tag_name:
+            return tag['Value']
+
+
 def __get_color_from_resource(resource_arn):
     """
     Récupère la couleur d'une ressource donnée
@@ -98,13 +106,18 @@ def __get_color_from_resource(resource_arn):
     :return:                BLUE/GREEN
     :rtype:                 str
     """
-    tag_desc = elbv2_client.describe_tags(
-        ResourceArns=[resource_arn]
-    )
-    tags = tag_desc['TagDescriptions'][0]['Tags']
-    for tag in tags:
-        if tag['Key'] == constant.TARGET_GROUP_COLOR_TAG_NAME:
-            return tag['Value']
+    return __get_tag_value_from_resource(resource_arn, constant.TARGET_GROUP_COLOR_TAG_NAME)
+
+
+def __get_type_from_resource(resource_arn):
+    """
+    Récupère le type d'une ressource donnée
+    :param resource_arn:    Ressource AWS arn
+    :type resource_arn:     str
+    :return:                default/maintenance
+    :rtype:                 str
+    """
+    return __get_tag_value_from_resource(resource_arn, constant.TARGET_GROUP_TYPE_TAG_NAME)
 
 
 # ~~~~~~~~~~~~~~~~ Rules ~~~~~~~~~~~~~~~~
@@ -126,41 +139,53 @@ def get_uncolored_rules(listener):
     return uncolored_rules
 
 
-def get_listener_rule_target_group_arn(listener_rule_arn):
-    """
-    Gets listener rule target group arn for forward rules
-    :param listener_rule_arn
-    :type listener_rule_arn: str
-    :return: listener rule target group arn or None
-    :rtype str
-    """
-    rule_details = elbv2_client.describe_rules(RuleArns=[listener_rule_arn])
-    target_group_arn = None
-    if len(rule_details['Rules']) > 0:
-        try:
-            target_group_arn = rule_details['Rules'][0]['Actions'][0]['TargetGroupArn']
-        except Exception as e:
-            logging.warning('No foward target group found for listener: ' + listener_rule_arn)
-    return target_group_arn
-
-
 def __is_uncolored_host_header_value(value):
     return constant.BLUE not in value.upper() and constant.GREEN not in value.upper()
 
 
 # ~~~~~~~~~~~~~~~~ TARGET GROUP ~~~~~~~~~~~~~~~~
 
+def get_target_group_with_type_color_and_workspace(tg_type, color, workspace):
+    """
+    Récupère un target group ayant un type et une couleur précise
+    :param tg_type: Type recherché
+    :type tg_type:  str
+    :param color:   Couleur recherché
+    :type color:    str
+    :param workspace: Workspace
+    :type workspace:  str
+    :return:        Target group trouvé
+    :rtype:         dict
+    """
 
-def get_target_group_name(target_group_arn):
-    """
-    Gets target group name from target group arn
-    :param target_group_arn:
-    :type target_group_arn: str
-    :return: Target group name or None if not found
-    :rtype: str
-    """
-    target_group_name = None
-    target_group = elbv2_client.describe_target_groups(TargetGroupArns=[target_group_arn])
-    if len(target_group['TargetGroups']) > 0:
-        target_group_name = target_group['TargetGroups'][0]['TargetGroupName']
-    return target_group_name
+    response = tagging_client.get_resources(
+        TagFilters=[
+            {
+                'Key': 'Color',
+                'Values': [
+                    color.lower(),
+                ]
+            },
+            {
+                'Key': 'Type',
+                'Values': [
+                    tg_type.lower(),
+                ]
+            },
+            {
+                'Key': 'Workspace',
+                'Values': [
+                    workspace.lower(),
+                ]
+            }
+        ],
+        ResourceTypeFilters=[
+            'elasticloadbalancing:targetgroup',
+        ],
+    )
+
+    if len(response['ResourceTagMappingList']) != 1:
+        raise Exception('Expected one target group with type {}, color {}, and workspace {}. But found {}'
+                        .format(tg_type, color, workspace, str(len(response['ResourceTagMappingList']))))
+
+    return response['ResourceTagMappingList'][0]['ResourceARN']
