@@ -3,9 +3,10 @@ from setuptools import setup
 setup(
     name='lcdp_deployment_manager',  # How you named your package folder
     packages=['lcdp_deployment_manager'],  # Chose the same as "name"
-    version='1.1.8',  # Start with a small number and increase it with every change you make
+    version='1.1.9',  # Start with a small number and increase it with every change you make
     license='MIT',  # Chose a license from here: https://help.github.com/articles/licensing-a-repository
     # description: Give a short description about your library
+    long_description_content_type="text/plain",
     description='High level utilities to get/set AWS infrastructure items on prod',
     long_description='High level utilities to get/set AWS infrastructure items on prod',
     author='Géry THRASIBULE',  # Author's name
