@@ -1,6 +1,4 @@
 import boto3
-import logging
-from . import common as common
 from . import constant as constant
 
 # Client
@@ -23,6 +21,7 @@ def get_alb_from_aws(alb_name):
     )
     # WARNING: If we got multiple alb
     return alb_desc['LoadBalancers'][0]
+
 
 # ~~~~~~~~~~~~~~~~ Listener ~~~~~~~~~~~~~~~~
 
@@ -123,7 +122,7 @@ def __get_type_from_resource(resource_arn):
 # ~~~~~~~~~~~~~~~~ Rules ~~~~~~~~~~~~~~~~
 
 
-# Récupère les règles qui n'ont pas une couleur dans l'url de redirection
+# Récupère les règles qui n'ont pas une couleur dans l'url de redirection et leurs tags 'type'
 # ex : blue.beta.verde -> NON ; beta.verde -> OUI
 def get_uncolored_rules(listener):
     rules_desc = elbv2_client.describe_rules(
@@ -135,6 +134,7 @@ def get_uncolored_rules(listener):
             host = condition.get('HostHeaderConfig', None)
             if host:
                 if all(__is_uncolored_host_header_value(v) for v in host['Values']):
+                    rule[constant.FORWARD_RULE_TYPE_KEY] = __get_type_from_resource(rule['RuleArn'])
                     uncolored_rules.append(rule)
     return uncolored_rules
 
@@ -158,14 +158,8 @@ def get_target_group_with_type_color_and_workspace(tg_type, color, workspace):
     :rtype:         dict
     """
 
-    response = tagging_client.get_resources(
-        TagFilters=[
-            {
-                'Key': 'Color',
-                'Values': [
-                    color.lower(),
-                ]
-            },
+    tag_filter = \
+        [
             {
                 'Key': 'Type',
                 'Values': [
@@ -178,7 +172,18 @@ def get_target_group_with_type_color_and_workspace(tg_type, color, workspace):
                     workspace.lower(),
                 ]
             }
-        ],
+        ]
+
+    if color is not None:
+        tag_filter.append({
+            'Key': 'Color',
+            'Values': [
+                color.lower(),
+            ]
+        })
+
+    response = tagging_client.get_resources(
+        TagFilters=tag_filter,
         ResourceTypeFilters=[
             'elasticloadbalancing:targetgroup',
         ],
