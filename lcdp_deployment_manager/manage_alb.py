@@ -1,6 +1,4 @@
 import boto3
-import logging
-from . import common as common
 from . import constant as constant
 
 # Client
@@ -24,6 +22,7 @@ def get_alb_from_aws(alb_name):
     # WARNING: If we got multiple alb
     return alb_desc['LoadBalancers'][0]
 
+
 # ~~~~~~~~~~~~~~~~ Listener ~~~~~~~~~~~~~~~~
 
 def get_current_listener(alb_arn, ssl_enabled):
@@ -44,6 +43,9 @@ def get_production_color(listener):
     current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
     return __get_color_from_resource(current_target_group_arn).upper()
 
+
+def get_type(listener):
+    return __get_type_from_resource(listener['RuleArn']).upper()
 
 def get_production_type(listener):
     """
@@ -81,7 +83,7 @@ def __get_default_forward_target_group_arn_from_listener(listener):
             return action['TargetGroupArn']
 
 
-def __get_tag_value_from_resource(resource_arn, tag_name):
+def __get_tags_from_resource(resource_arn):
     """
     Récupère les tags d'une ressource donnée
     :param resource_arn:    Ressource AWS arn
@@ -93,6 +95,10 @@ def __get_tag_value_from_resource(resource_arn, tag_name):
         ResourceArns=[resource_arn]
     )
     tags = tag_desc['TagDescriptions'][0]['Tags']
+    return tags
+
+def __get_tag_value_from_resource(resource_arn, tag_name):
+    tags = __get_tags_from_resource(resource_arn)
     for tag in tags:
         if tag['Key'] == tag_name:
             return tag['Value']
@@ -123,7 +129,7 @@ def __get_type_from_resource(resource_arn):
 # ~~~~~~~~~~~~~~~~ Rules ~~~~~~~~~~~~~~~~
 
 
-# Récupère les règles qui n'ont pas une couleur dans l'url de redirection
+# Récupère les règles qui n'ont pas une couleur dans l'url de redirection et leurs tags 'type'
 # ex : blue.beta.verde -> NON ; beta.verde -> OUI
 def get_uncolored_rules(listener):
     rules_desc = elbv2_client.describe_rules(
@@ -158,14 +164,8 @@ def get_target_group_with_type_color_and_workspace(tg_type, color, workspace):
     :rtype:         dict
     """
 
-    response = tagging_client.get_resources(
-        TagFilters=[
-            {
-                'Key': 'Color',
-                'Values': [
-                    color.lower(),
-                ]
-            },
+    tag_filter = \
+        [
             {
                 'Key': 'Type',
                 'Values': [
@@ -178,7 +178,18 @@ def get_target_group_with_type_color_and_workspace(tg_type, color, workspace):
                     workspace.lower(),
                 ]
             }
-        ],
+        ]
+
+    if color:
+        tag_filter.append({
+            'Key': 'Color',
+            'Values': [
+                color.lower(),
+            ]
+        })
+
+    response = tagging_client.get_resources(
+        TagFilters=tag_filter,
         ResourceTypeFilters=[
             'elasticloadbalancing:targetgroup',
         ],
