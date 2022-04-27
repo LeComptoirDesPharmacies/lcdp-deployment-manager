@@ -129,7 +129,7 @@ def __get_type_from_resource(resource_arn):
 # ~~~~~~~~~~~~~~~~ Rules ~~~~~~~~~~~~~~~~
 
 
-# Récupère les règles qui n'ont pas une couleur dans l'url de redirection et leurs tags 'type'
+# Récupère les règles qui n'ont pas une couleur dans l'url
 # ex : blue.beta.verde -> NON ; beta.verde -> OUI
 def get_uncolored_rules(listener):
     rules_desc = elbv2_client.describe_rules(
@@ -142,6 +142,8 @@ def get_uncolored_rules(listener):
             if host:
                 if all(__is_uncolored_host_header_value(v) for v in host['Values']):
                     uncolored_rules.append(rule)
+            else:
+                uncolored_rules.append(rule)
     return uncolored_rules
 
 
