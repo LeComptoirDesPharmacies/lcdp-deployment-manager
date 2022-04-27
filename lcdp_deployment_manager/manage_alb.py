@@ -43,10 +43,6 @@ def get_production_color(listener):
     current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
     return __get_color_from_resource(current_target_group_arn).upper()
 
-
-def get_type(listener):
-    return __get_type_from_resource(listener['RuleArn']).upper()
-
 def get_production_type(listener):
     """
     Récupère le type actuellement en production
@@ -56,7 +52,7 @@ def get_production_type(listener):
     :rtype:             str
     """
     current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
-    return __get_type_from_resource(current_target_group_arn).upper()
+    return get_type_from_resource(current_target_group_arn).upper()
 
 
 def __get_listener(listeners, ssl_enabled):
@@ -115,7 +111,7 @@ def __get_color_from_resource(resource_arn):
     return __get_tag_value_from_resource(resource_arn, constant.TARGET_GROUP_COLOR_TAG_NAME)
 
 
-def __get_type_from_resource(resource_arn):
+def get_type_from_resource(resource_arn):
     """
     Récupère le type d'une ressource donnée
     :param resource_arn:    Ressource AWS arn
@@ -137,18 +133,19 @@ def get_uncolored_rules(listener):
     )
     uncolored_rules = []
     for rule in rules_desc['Rules']:
+        is_colored = False
         for condition in rule['Conditions']:
             host = condition.get('HostHeaderConfig', None)
             if host:
-                if all(__is_uncolored_host_header_value(v) for v in host['Values']):
-                    uncolored_rules.append(rule)
-            else:
-                uncolored_rules.append(rule)
+                is_colored = any(__is_colored_host_header_value(v) for v in host['Values'])
+
+        if not is_colored:
+          uncolored_rules.append(rule)
     return uncolored_rules
 
 
-def __is_uncolored_host_header_value(value):
-    return constant.BLUE not in value.upper() and constant.GREEN not in value.upper()
+def __is_colored_host_header_value(value):
+    return constant.BLUE in value.upper() or constant.GREEN in value.upper()
 
 
 # ~~~~~~~~~~~~~~~~ TARGET GROUP ~~~~~~~~~~~~~~~~

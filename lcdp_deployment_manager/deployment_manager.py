@@ -2,7 +2,7 @@ import time
 from functools import reduce
 from . import constant as constant
 from . import common as common
-
+from . import manage_alb as alb_manager
 
 ###
 #   Classe permettant de gérer le déployement
@@ -42,6 +42,15 @@ class DeploymentManager:
             "Order": 1
         }
 
+    def get_type(self, rule):
+        type_holder = self.http_listener['ListenerArn']  if rule['IsDefault'] else rule['RuleArn']
+        target_type = alb_manager.get_type_from_resource(type_holder)
+
+        if target_type:
+            return target_type.upper()
+        else:
+            return None
+
     def get_production_environment(self):
         if self.prod_color == constant.BLUE:
             return self.blue_environment
@@ -66,10 +75,16 @@ class DeploymentManager:
             self.__modify_rule_target_group(rule, new_target_group_arn)
 
     def __modify_rule_target_group(self, rule, target_group_arn):
-        return self.elbv2_client.modify_rule(
-            RuleArn=rule['RuleArn'],
-            Actions=[self.__build_forward_actions(target_group_arn)]
-        )
+        if rule['IsDefault']:
+            return self.elbv2_client.modify_listener(
+                ListenerArn=self.http_listener['ListenerArn'],
+                DefaultActions = [self.__build_forward_actions(target_group_arn)]
+            )
+        else:
+            return self.elbv2_client.modify_rule(
+                RuleArn=rule['RuleArn'],
+                Actions=[self.__build_forward_actions(target_group_arn)]
+            )
 
     def get_rules_with_type_and_color(self, expected_type, expected_color):
         return [r for r in self.rules if self.__assert_rule(r, expected_type, expected_color)]
