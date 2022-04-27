@@ -180,7 +180,7 @@ def get_target_group_with_type_color_and_workspace(tg_type, color, workspace):
             }
         ]
 
-    if color is not None:
+    if color:
         tag_filter.append({
             'Key': 'Color',
             'Values': [
