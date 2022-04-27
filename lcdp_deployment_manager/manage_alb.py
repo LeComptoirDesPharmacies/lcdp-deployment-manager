@@ -44,6 +44,9 @@ def get_production_color(listener):
     return __get_color_from_resource(current_target_group_arn).upper()
 
 
+def get_type(listener):
+    return __get_type_from_resource(listener['RuleArn']).upper()
+
 def get_production_type(listener):
     """
     Récupère le type actuellement en production
@@ -80,7 +83,7 @@ def __get_default_forward_target_group_arn_from_listener(listener):
             return action['TargetGroupArn']
 
 
-def __get_tag_value_from_resource(resource_arn, tag_name):
+def __get_tags_from_resource(resource_arn):
     """
     Récupère les tags d'une ressource donnée
     :param resource_arn:    Ressource AWS arn
@@ -92,6 +95,10 @@ def __get_tag_value_from_resource(resource_arn, tag_name):
         ResourceArns=[resource_arn]
     )
     tags = tag_desc['TagDescriptions'][0]['Tags']
+    return tags
+
+def __get_tag_value_from_resource(resource_arn, tag_name):
+    tags = __get_tags_from_resource(resource_arn)
     for tag in tags:
         if tag['Key'] == tag_name:
             return tag['Value']
@@ -134,7 +141,6 @@ def get_uncolored_rules(listener):
             host = condition.get('HostHeaderConfig', None)
             if host:
                 if all(__is_uncolored_host_header_value(v) for v in host['Values']):
-                    rule[constant.FORWARD_RULE_TYPE_KEY] = __get_type_from_resource(rule['RuleArn'])
                     uncolored_rules.append(rule)
     return uncolored_rules
 
