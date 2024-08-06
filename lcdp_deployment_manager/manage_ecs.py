@@ -3,11 +3,13 @@ from . import constant as constant
 
 ecs_client = boto3.client('ecs')
 
+
 def get_services_from_cluster(cluster_name, max_results=100):
     return ecs_client.list_services(
         cluster=cluster_name,
         maxResults=max_results
     )
+
 
 def get_services_arn_from_query(q, cluster_name):
     founded_services = []
@@ -16,6 +18,7 @@ def get_services_arn_from_query(q, cluster_name):
         if q.upper() in service_arn.upper():
             founded_services.append(service_arn)
     return founded_services
+
 
 # Récupère les arn de tous les services ecs d'un cluster pour une couleur donnée
 def get_services_arn_for_color(color, cluster_name):

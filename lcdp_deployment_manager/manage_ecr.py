@@ -29,7 +29,7 @@ def get_repository_image_for_tag(repository_name, tag):
 
 # Récupère la liste des images pour lesquelles le tag n'est pas le même que la couleur active
 def find_mismatched_repositories_between_tag_and_color(repositories_name, tag, color):
-    mismatched_repositories = []
+    mismatched_repositories_name = []
 
     for repository_name in repositories_name:
         tag_image = get_repository_image_for_tag(repository_name, tag)
@@ -37,9 +37,9 @@ def find_mismatched_repositories_between_tag_and_color(repositories_name, tag, c
 
         if tag_image and color_image and tag_image['imageDigest'] != color_image['imageDigest']:
             print('Mismatched image for repository: {}'.format(repository_name))
-            mismatched_repositories.append(repository_name)
+            mismatched_repositories_name.append(repository_name)
 
-    return mismatched_repositories
+    return mismatched_repositories_name
 
 
 # Récupère le manifest d'une image

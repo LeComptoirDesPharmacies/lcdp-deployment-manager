@@ -120,18 +120,19 @@ class DeploymentManager:
         for r in self.repositories:
             r.add_tag(tag)
 
+    def set_color_to_list_repositories_name(self, repositories_name):
+        print('Add color {} to mismatched repositories: {}'.format(self.prod_color, repositories_name))
+
+        for r in self.repositories:
+            if r.name in repositories_name:
+                r.add_tag(self.prod_color)
+
     # Cherche les repositories qui ont un tag mais pour lesquels la couleur active n'est pas appliquée et applique la
-    def add_tag_to_mismatched_repositories(self, tag):
-        mismatched_repositories = ecr_manager.find_mismatched_repositories_between_tag_and_color(
+    def find_mismatched_repositories_name_between_tag_and_active_color(self, tag):
+        return ecr_manager.find_mismatched_repositories_between_tag_and_color(
             ecr_manager.get_service_repositories_name(),
             tag,
             self.prod_color)
-        print('Adding tag to {} to mismatched repositories: {}'.format(self.prod_color, mismatched_repositories))
-
-        # browse all repositories and add tag
-        for r in self.repositories:
-            if r.name in mismatched_repositories:
-                r.add_tag(self.prod_color)
 
 
 ###
