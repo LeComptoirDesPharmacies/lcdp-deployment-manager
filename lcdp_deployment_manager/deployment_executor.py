@@ -17,18 +17,22 @@ def do_balancing(deployment_manager, from_environment, to_environment):
     )
 
 
-def deploy_services_of_repositories_name(environment, repositories_name):
+def deploy_services_of_repositories_name(workspace, environment, repositories_name):
     print("Deploy services for repositories {}".format(repositories_name))
 
-    # add color to the repository name to avoid starting a service of another color and lower case
-    repositories_name_with_color = [(repo + '-' + environment.color).lower() for repo in repositories_name]
+    # Transforme le nom du repo de la forme 'lcdp-<service_name>' en 'lcdp-<workspace>-<service_name>-service-<color>'
+    repositories_name_with_color = [
+        f"{repo.replace('lcdp-', f'lcdp-{workspace}-')}-service-{environment.color}".lower()
+        for repo in repositories_name
+    ]
 
     services_to_start = []
 
     for service in environment.ecs_services:
-        # le nom du service est de la forme 'lcdp-<service_name>-<color>
-        # Extraire le nom du service
-        service_name = service['serviceName'].lower()
+        # le nom du service est de la forme 'lcdp-<workspace>-<service_name>-<color>
+        # Extraire le nom du service depuis le resource_id
+        # (ex: service/lcdp-verde-cluster/lcdp-verde-admin-front-service-blue)
+        service_name = service.resource_id.split('/')[-1].lower()
 
         # Vérifier si le nom du service contient le nom d'un des repositories
         if any(repo_name in service_name for repo_name in repositories_name_with_color):
@@ -36,7 +40,7 @@ def deploy_services_of_repositories_name(environment, repositories_name):
 
     if services_to_start:
         for service in services_to_start:
-            print("Start service {}".format(service['serviceName']))
+            print("Start service {}".format(service.resource_id))
             service.start()
 
         # Wait for all service receive startup
