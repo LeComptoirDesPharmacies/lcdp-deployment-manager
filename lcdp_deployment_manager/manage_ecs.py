@@ -1,8 +1,11 @@
 import boto3
 
 from . import constant as constant
+from .deployment_manager \
+    import EcsService
 
 ecs_client = boto3.client('ecs')
+application_autoscaling_client = boto3.client('application-autoscaling')
 
 
 def get_services_from_cluster(cluster_name, max_results=100):
@@ -69,6 +72,13 @@ def get_map_of_repo_name_service(color, cluster_name):
                 # (ex: 721041490777.dkr.ecr.us-east-1.amazonaws.com/lcdp-api-gateway:BLUE)
                 repository_name = image.split('/')[-1].split(':')[0]
 
-                repo_name_service_map[repository_name] = service
+                ecsService = EcsService(ecs_client=ecs_client,
+                                        application_autoscaling_client=application_autoscaling_client,
+                                        cluster_name=cluster_name,
+                                        service_arn=service_arn,
+                                        max_capacity=get_service_max_capacity_from_service_arn(service_arn),
+                                        resource_id=get_service_resource_id_from_service_arn(service_arn))
+
+                repo_name_service_map[repository_name] = ecsService
 
     return repo_name_service_map
