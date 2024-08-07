@@ -1,4 +1,5 @@
 import boto3
+
 from . import constant as constant
 
 ecs_client = boto3.client('ecs')
@@ -44,3 +45,30 @@ def get_service_max_capacity_from_service_arn(service_arn):
 
 def get_service_resource_id_from_service_arn(service_arn):
     return str(service_arn).split(':')[5]
+
+
+# récupère le nom du repository de l'image des services
+def get_map_of_repo_name_service(color, cluster_name):
+    repo_name_service_map = {}
+    services = get_services_from_cluster(cluster_name)
+    for service_arn in services['serviceArns']:
+        if color in service_arn.upper():
+            service = ecs_client.describe_services(
+                cluster=cluster_name,
+                services=[service_arn]
+            )
+            taskDefinition = ecs_client.describe_task_definition(
+                taskDefinition=service['services'][0]['taskDefinition']
+            )
+            containerDefinitions = taskDefinition['taskDefinition']['containerDefinitions']
+
+            if containerDefinitions:
+                image = containerDefinitions[0]['image']
+
+                # Extrait le nom du repository de l'image
+                # (ex: 721041490777.dkr.ecr.us-east-1.amazonaws.com/lcdp-api-gateway:BLUE)
+                repository_name = image.split('/')[-1].split(':')[0]
+
+                repo_name_service_map[repository_name] = service
+
+    return repo_name_service_map
