@@ -1,7 +1,8 @@
 import time
 from functools import reduce
-from . import constant as constant
+
 from . import common as common
+from . import constant as constant
 from . import manage_alb as alb_manager
 
 ###
@@ -90,12 +91,18 @@ class DeploymentManager:
         return [r for r in self.rules if self.__assert_rule(r, expected_type, expected_color)]
 
     def get_forward_rules(self):
-        forward_rules = []
+        return self.get_types_rules('forward')
+
+    def get_fixed_response_rules(self):
+        return self.get_types_rules('fixed-response')
+
+    def get_types_rules(self, rule_type):
+        typed_rules = []
         for rule in self.rules:
             for action in rule['Actions']:
-                if action['Type'] == 'forward':
-                    forward_rules.append(rule)
-        return forward_rules
+                if action['Type'] == rule_type:
+                    typed_rules.append(rule)
+        return typed_rules
 
     def __assert_rule(self, rule, expected_type, expected_color):
         expected = (expected_type.upper(), expected_color.upper())
