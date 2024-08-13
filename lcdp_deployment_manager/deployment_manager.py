@@ -3,6 +3,8 @@ from functools import reduce
 from . import constant as constant
 from . import common as common
 from . import manage_alb as alb_manager
+from . import manage_ecr as ecr_manager
+
 
 ###
 #   Classe permettant de gérer le déployement
@@ -43,7 +45,7 @@ class DeploymentManager:
         }
 
     def get_type(self, rule):
-        type_holder = self.http_listener['ListenerArn']  if rule['IsDefault'] else rule['RuleArn']
+        type_holder = self.http_listener['ListenerArn'] if rule['IsDefault'] else rule['RuleArn']
         target_type = alb_manager.get_type_from_resource(type_holder)
 
         if target_type:
@@ -78,7 +80,7 @@ class DeploymentManager:
         if rule['IsDefault']:
             return self.elbv2_client.modify_listener(
                 ListenerArn=self.http_listener['ListenerArn'],
-                DefaultActions = [self.__build_forward_actions(target_group_arn)]
+                DefaultActions=[self.__build_forward_actions(target_group_arn)]
             )
         else:
             return self.elbv2_client.modify_rule(
@@ -111,12 +113,26 @@ class DeploymentManager:
     def __assert_target_group(self, target_group, expected_type, expected_color):
 
         return target_group['Type'].upper() == expected_type.upper() \
-               and target_group['Color'].upper() == expected_color.upper()
+            and target_group['Color'].upper() == expected_color.upper()
 
     # Ajout d'un tag a tous les repository d'un environement
     def add_tag_to_repositories(self, tag):
         for r in self.repositories:
             r.add_tag(tag)
+
+    def set_color_to_list_repositories_name(self, repositories_name):
+        print('Add color {} to mismatched repositories: {}'.format(self.prod_color, repositories_name))
+
+        for r in self.repositories:
+            if r.name in repositories_name:
+                r.add_tag(self.prod_color)
+
+    # Cherche les repositories qui ont un tag mais pour lesquels la couleur active n'est pas appliquée et applique la
+    def find_mismatched_repositories_name_between_tag_and_active_color(self, tag):
+        return ecr_manager.find_mismatched_repositories_between_tag_and_color(
+            ecr_manager.get_service_repositories_name(),
+            tag,
+            self.prod_color)
 
 
 ###
@@ -173,7 +189,7 @@ class Environment:
         if constant.HEALTHCHECK_RETRY_LIMIT < retry:
             print("Tried {} but retry limit has been reach before all services been healthy".format(retry))
             # Raise exception
-            unhealthy_sve = reduce(lambda a, b: a.service_arn+','+b.service_arn, self.get_unhealthy_services())
+            unhealthy_sve = reduce(lambda a, b: a.service_arn + ',' + b.service_arn, self.get_unhealthy_services())
             raise Exception("Unable to deploy, services still unhealthy. Unhealthy Services : {}".format(unhealthy_sve))
         else:
             print("Tried {} and all service are now healthy".format(retry))
@@ -192,7 +208,8 @@ class EcsService:
     max_capacity = None
     resource_id = None
 
-    def __init__(self, ecs_client,  application_autoscaling_client, cluster_name, service_arn, max_capacity, resource_id):
+    def __init__(self, ecs_client, application_autoscaling_client, cluster_name, service_arn, max_capacity,
+                 resource_id):
         self.ecs_client = ecs_client
         self.cluster_name = cluster_name
         self.service_arn = service_arn
@@ -298,4 +315,3 @@ class Repository:
             return new_image
         except self.ecr_client.exceptions.ImageAlreadyExistsException:
             print('Image {} in repository {} already exist with tag {}'.format(self.image, self.name, tag))
-
