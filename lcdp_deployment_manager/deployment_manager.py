@@ -102,12 +102,12 @@ class DeploymentManager:
         return [r for r in self.rules if self.__assert_rule(r, expected_type, expected_color)]
 
     def get_forward_rules(self):
-        return self.get_types_rules('forward')
+        return self.get_typed_rules('forward')
 
     def get_fixed_response_rules(self):
-        return self.get_types_rules('fixed-response')
+        return self.get_typed_rules('fixed-response')
 
-    def get_types_rules(self, rule_type):
+    def get_typed_rules(self, rule_type):
         typed_rules = []
         for rule in self.rules:
             for action in rule['Actions']:
@@ -149,6 +149,20 @@ class DeploymentManager:
             ecr_manager.get_service_repositories_name(),
             tag,
             self.prod_color)
+
+    def get_lowest_available_priority_alb_rule(self):
+        used_priorities = set()
+
+        for rule in self.rules:
+            used_priorities.add(int(rule['Priority']))
+
+        # Trouver la plus petite priorité disponible
+        for priority in range(1, 50001):  # Les priorités ALB vont de 1 à 50000
+            if priority not in used_priorities:
+                return priority
+
+        # Si toutes les priorités sont utilisées (cas très improbable)
+        return None
 
 
 ###
