@@ -154,7 +154,8 @@ class DeploymentManager:
         used_priorities = set()
 
         for rule in self.rules:
-            used_priorities.add(int(rule['Priority']))
+            if not rule['IsDefault']:
+                used_priorities.add(int(rule['Priority']))
 
         # Trouver la plus petite priorité disponible
         for priority in range(1, 50001):  # Les priorités ALB vont de 1 à 50000
