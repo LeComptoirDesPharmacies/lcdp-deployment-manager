@@ -68,6 +68,15 @@ class DeploymentManager:
             return self.green_environment
         raise Exception('Unable to get pre prod environment...')
 
+    def create_rule(self, conditions, actions, priority, tags):
+        self.elbv2_client.create_rule(
+            ListenerArn=self.http_listener['ListenerArn'],
+            Conditions=conditions,
+            Actions=actions,
+            Priority=priority,
+            Tags=tags
+        )
+
     def update_rule_target_group(self, expected_rule_type, expected_rule_color, new_target_group_arn):
         targeted_rules = self.get_rules_with_type_and_color(expected_rule_type, expected_rule_color)
         for targeted_rule in targeted_rules:
