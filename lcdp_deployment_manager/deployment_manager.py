@@ -1,7 +1,8 @@
 import time
 from functools import reduce
-from . import constant as constant
+
 from . import common as common
+from . import constant as constant
 from . import manage_alb as alb_manager
 from . import manage_ecr as ecr_manager
 
@@ -67,6 +68,15 @@ class DeploymentManager:
             return self.green_environment
         raise Exception('Unable to get pre prod environment...')
 
+    def create_rule(self, conditions, actions, priority, tags):
+        self.elbv2_client.create_rule(
+            ListenerArn=self.http_listener['ListenerArn'],
+            Conditions=conditions,
+            Actions=actions,
+            Priority=priority,
+            Tags=tags
+        )
+
     def update_rule_target_group(self, expected_rule_type, expected_rule_color, new_target_group_arn):
         targeted_rules = self.get_rules_with_type_and_color(expected_rule_type, expected_rule_color)
         for targeted_rule in targeted_rules:
@@ -92,12 +102,18 @@ class DeploymentManager:
         return [r for r in self.rules if self.__assert_rule(r, expected_type, expected_color)]
 
     def get_forward_rules(self):
-        forward_rules = []
+        return self.get_typed_rules('forward')
+
+    def get_fixed_response_rules(self):
+        return self.get_typed_rules('fixed-response')
+
+    def get_typed_rules(self, rule_type):
+        typed_rules = []
         for rule in self.rules:
             for action in rule['Actions']:
-                if action['Type'] == 'forward':
-                    forward_rules.append(rule)
-        return forward_rules
+                if action['Type'] == rule_type:
+                    typed_rules.append(rule)
+        return typed_rules
 
     def __assert_rule(self, rule, expected_type, expected_color):
         expected = (expected_type.upper(), expected_color.upper())
@@ -133,6 +149,21 @@ class DeploymentManager:
             ecr_manager.get_service_repositories_name(),
             tag,
             self.prod_color)
+
+    def get_lowest_available_priority_alb_rule(self):
+        used_priorities = set()
+
+        for rule in self.rules:
+            if not rule['IsDefault']:
+                used_priorities.add(int(rule['Priority']))
+
+        # Trouver la plus petite priorité disponible
+        for priority in range(1, 50001):  # Les priorités ALB vont de 1 à 50000
+            if priority not in used_priorities:
+                return priority
+
+        # Si toutes les priorités sont utilisées (cas très improbable)
+        return None
 
 
 ###
