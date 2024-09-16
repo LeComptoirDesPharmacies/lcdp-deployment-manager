@@ -5,8 +5,7 @@ import boto3
 cloudwatch_client = boto3.client('cloudwatch')
 
 
-def get_smuggler_metrics(namespace_name, metric_name_active_jobs, metric_name_pending_jobs, dimension_name_color,
-                       env_color):
+def get_smuggler_metrics(env_color):
     end_time = datetime.now(timezone.utc)
     start_time = end_time - timedelta(minutes=30)
 
@@ -16,11 +15,11 @@ def get_smuggler_metrics(namespace_name, metric_name_active_jobs, metric_name_pe
                 'Id': 'active_jobs',
                 'MetricStat': {
                     'Metric': {
-                        'Namespace': namespace_name,
-                        'MetricName': metric_name_active_jobs,
+                        'Namespace': 'LCDP-SMUGGLER',
+                        'MetricName': 'ActiveJobs',
                         'Dimensions': [
                             {
-                                'Name': dimension_name_color,
+                                'Name': 'Color',
                                 'Value': env_color
                             },
                         ]
@@ -33,11 +32,11 @@ def get_smuggler_metrics(namespace_name, metric_name_active_jobs, metric_name_pe
                 'Id': 'pending_jobs',
                 'MetricStat': {
                     'Metric': {
-                        'Namespace': namespace_name,
-                        'MetricName': metric_name_pending_jobs,
+                        'Namespace': 'LCDP-SMUGGLER',
+                        'MetricName': 'PendingJobs',
                         'Dimensions': [
                             {
-                                'Name': dimension_name_color,
+                                'Name': 'Color',
                                 'Value': env_color
                             },
                         ]

@@ -226,11 +226,8 @@ class Environment:
         else:
             print("Tried {} and all service are now healthy".format(retry))
 
-    def get_active_and_pending_smuggler_jobs(self, namespace_name, metric_name_active_jobs, metric_name_pending_jobs,
-                                             dimension_name_color):
-        return cloudwatch_manager.get_smuggler_metrics(namespace_name, metric_name_active_jobs,
-                                                       metric_name_pending_jobs, dimension_name_color,
-                                                       self.color.upper())
+    def get_active_and_pending_smuggler_jobs(self):
+        return cloudwatch_manager.get_smuggler_metrics(self.color.upper())
 
 
 ###
