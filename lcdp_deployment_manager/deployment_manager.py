@@ -4,6 +4,7 @@ from functools import reduce
 from . import common as common
 from . import constant as constant
 from . import manage_alb as alb_manager
+from . import manage_cloudwatch as cloudwatch_manager
 from . import manage_ecr as ecr_manager
 
 
@@ -224,6 +225,9 @@ class Environment:
             raise Exception("Unable to deploy, services still unhealthy. Unhealthy Services : {}".format(unhealthy_sve))
         else:
             print("Tried {} and all service are now healthy".format(retry))
+
+    def get_active_and_pending_smuggler_jobs(self):
+        return cloudwatch_manager.get_smuggler_metrics(self.color.upper())
 
 
 ###
