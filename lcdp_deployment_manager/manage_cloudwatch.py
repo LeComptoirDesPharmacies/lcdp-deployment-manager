@@ -15,7 +15,7 @@ def get_smuggler_metrics(env_color):
                 'Id': 'active_jobs',
                 'MetricStat': {
                     'Metric': {
-                        'Namespace': 'LCDP-SMUGGLER',
+                        'Namespace': 'lcdp-smuggler',
                         'MetricName': 'ActiveJobs',
                         'Dimensions': [
                             {
@@ -32,7 +32,7 @@ def get_smuggler_metrics(env_color):
                 'Id': 'pending_jobs',
                 'MetricStat': {
                     'Metric': {
-                        'Namespace': 'LCDP-SMUGGLER',
+                        'Namespace': 'lcdp-smuggler',
                         'MetricName': 'PendingJobs',
                         'Dimensions': [
                             {
