@@ -5,7 +5,7 @@ import boto3
 cloudwatch_client = boto3.client('cloudwatch')
 
 
-def get_smuggler_metrics(env_color):
+def get_smuggler_metrics(env, env_color):
     end_time = datetime.now(timezone.utc)
     start_time = end_time - timedelta(minutes=30)
 
@@ -22,6 +22,10 @@ def get_smuggler_metrics(env_color):
                                 'Name': 'Color',
                                 'Value': env_color
                             },
+                            {
+                                'Name': 'env',
+                                'Value': env
+                            }
                         ]
                     },
                     'Period': 300,
@@ -39,6 +43,10 @@ def get_smuggler_metrics(env_color):
                                 'Name': 'Color',
                                 'Value': env_color
                             },
+                            {
+                                'Name': 'env',
+                                'Value': env
+                            }
                         ]
                     },
                     'Period': 300,

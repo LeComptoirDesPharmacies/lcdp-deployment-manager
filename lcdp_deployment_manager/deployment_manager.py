@@ -172,15 +172,17 @@ class DeploymentManager:
 ###
 class Environment:
     ecs_client = None
+    workspace = None
     color = None
     target_group_type = None
     cluster_name = None
     ecs_services = []
     target_group_arn = None
 
-    def __init__(self, ecs_client, color, target_group_type, cluster_name, ecs_services,
+    def __init__(self, ecs_client, workspace, color, target_group_type, cluster_name, ecs_services,
                  target_group_arn):
         self.ecs_client = ecs_client
+        self.workspace = workspace
         self.color = color
         self.target_group_type = target_group_type
         self.cluster_name = cluster_name
@@ -227,7 +229,7 @@ class Environment:
             print("Tried {} and all service are now healthy".format(retry))
 
     def get_active_and_pending_smuggler_jobs(self):
-        return cloudwatch_manager.get_smuggler_metrics(self.color.upper())
+        return cloudwatch_manager.get_smuggler_metrics(self.workspace, self.color.upper())
 
 
 ###
