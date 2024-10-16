@@ -66,6 +66,7 @@ def __build_environment(color, target_group_type, cluster_name, workspace):
     ))
 
     return Environment(
+        workspace=workspace,
         color=color,
         target_group_type=target_group_type,
         cluster_name=cluster_name,
