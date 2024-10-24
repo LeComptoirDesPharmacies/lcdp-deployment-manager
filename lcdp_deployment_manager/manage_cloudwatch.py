@@ -63,6 +63,8 @@ def get_smuggler_metrics(env, env_color):
 
     metrics = dict()
 
+    logging.info("response")
+    logging.info(response)
     try:
         # ['MetricDataResults'][0] : ActiveJobs
         # ['Values'][0] : Most recent value
