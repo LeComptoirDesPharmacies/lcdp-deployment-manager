@@ -29,7 +29,7 @@ def get_services_arn_for_color(color, cluster_name):
     colored_services = []
     services = get_services_from_cluster(cluster_name)
     for service_arn in services['serviceArns']:
-        if color in service_arn.upper():
+        if color.upper() in service_arn.upper():
             colored_services.append(service_arn)
     return colored_services
 
@@ -55,7 +55,7 @@ def get_map_of_repo_name_service(color, cluster_name):
     repo_name_service_map = {}
     services = get_services_from_cluster(cluster_name)
     for service_arn in services['serviceArns']:
-        if color in service_arn.upper():
+        if color.upper() in service_arn.upper():
             service = ecs_client.describe_services(
                 cluster=cluster_name,
                 services=[service_arn]

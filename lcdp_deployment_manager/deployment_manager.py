@@ -51,7 +51,7 @@ class DeploymentManager:
         target_type = alb_manager.get_type_from_resource(type_holder)
 
         if target_type:
-            return target_type.upper()
+            return target_type
         else:
             return None
 
@@ -117,7 +117,7 @@ class DeploymentManager:
         return typed_rules
 
     def __assert_rule(self, rule, expected_type, expected_color):
-        expected = (expected_type.upper(), expected_color.upper())
+        expected = (expected_type, expected_color)
 
         for action in rule['Actions']:
             if action['Type'] == 'forward':

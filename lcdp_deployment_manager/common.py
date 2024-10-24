@@ -18,11 +18,10 @@ def get_type_and_color_for_resource(arn, client):
 def get_type_tag(tags):
     for tag in tags:
         if tag['Key'].upper() == TARGET_GROUP_TYPE_TAG_NAME.upper():
-            return tag['Value'].upper()
-
+            return tag['Value']
 
 # Récupère l'attribue color dans une liste de tag
 def get_color_tag(tags):
     for tag in tags:
         if tag['Key'].upper() == TARGET_GROUP_COLOR_TAG_NAME.upper():
-            return tag['Value'].upper()
+            return tag['Value']

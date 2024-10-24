@@ -41,7 +41,7 @@ def get_production_color(listener):
     :rtype:             str
     """
     current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
-    return __get_color_from_resource(current_target_group_arn).upper()
+    return __get_color_from_resource(current_target_group_arn)
 
 def get_production_type(listener):
     """
@@ -52,7 +52,7 @@ def get_production_type(listener):
     :rtype:             str
     """
     current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
-    return get_type_from_resource(current_target_group_arn).upper()
+    return get_type_from_resource(current_target_group_arn)
 
 
 def __get_listener(listeners, ssl_enabled):
@@ -145,7 +145,7 @@ def get_uncolored_rules(listener):
 
 
 def __is_colored_host_header_value(value):
-    return constant.BLUE in value.upper() or constant.GREEN in value.upper()
+    return constant.BLUE in value or constant.GREEN in value
 
 
 # ~~~~~~~~~~~~~~~~ TARGET GROUP ~~~~~~~~~~~~~~~~
