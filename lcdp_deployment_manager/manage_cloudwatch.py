@@ -2,12 +2,14 @@ from datetime import datetime, timezone, timedelta
 
 import boto3
 
+import logging
+
 cloudwatch_client = boto3.client('cloudwatch')
 
 
 def get_smuggler_metrics(env, env_color):
     end_time = datetime.now(timezone.utc)
-    start_time = end_time - timedelta(minutes=30)
+    start_time = end_time - timedelta(minutes=3)
 
     response = cloudwatch_client.get_metric_data(
         MetricDataQueries=[
@@ -28,7 +30,7 @@ def get_smuggler_metrics(env, env_color):
                             }
                         ]
                     },
-                    'Period': 300,
+                    'Period': 30,
                     'Stat': 'Maximum'
                 }
             },
@@ -49,26 +51,32 @@ def get_smuggler_metrics(env, env_color):
                             }
                         ]
                     },
-                    'Period': 300,
+                    'Period': 30,
                     'Stat': 'Maximum'
                 }
             },
         ],
         StartTime=start_time,
-        EndTime=end_time
+        EndTime=end_time,
+        ScanBy='TimestampDescending'
     )
 
+    metrics = dict()
+
     try:
+        # ['MetricDataResults'][0] : ActiveJobs
+        # ['Values'][0] : Most recent value
         active_jobs = response['MetricDataResults'][0]['Values'][0]
+        metrics['active_jobs'] = active_jobs
     except (KeyError, IndexError, TypeError):
-        active_jobs = 0
+        logging.exception("An error occured while retrieving 'active_jobs'")
 
     try:
+        # ['MetricDataResults'][1] : PendingJobs
+        # ['Values'][0] : Most recent value
         pending_jobs = response['MetricDataResults'][1]['Values'][0]
+        metrics['pending_jobs'] = pending_jobs
     except (KeyError, IndexError, TypeError):
-        pending_jobs = 0
+        logging.exception("An error occured while retrieving 'pending_jobs'")
 
-    return {
-        'active_jobs': active_jobs,
-        'pending_jobs': pending_jobs
-    }
+    return metrics
