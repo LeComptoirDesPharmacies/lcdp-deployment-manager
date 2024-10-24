@@ -229,7 +229,7 @@ class Environment:
             print("Tried {} and all service are now healthy".format(retry))
 
     def get_active_and_pending_smuggler_jobs(self):
-        return cloudwatch_manager.get_smuggler_metrics(self.workspace, self.color.upper())
+        return cloudwatch_manager.get_smuggler_metrics(self.workspace, self.color)
 
 
 ###
