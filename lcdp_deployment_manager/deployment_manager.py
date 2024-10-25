@@ -142,7 +142,7 @@ class DeploymentManager:
 
         for r in self.repositories:
             if r.name in repositories_name:
-                r.add_tag(self.prod_color)
+                r.add_tag(self.prod_color.upper())
 
     # Cherche les repositories qui ont un tag mais pour lesquels la couleur active n'est pas appliquée et applique la
     def find_mismatched_repositories_name_between_tag_and_active_color(self, tag):

@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='lcdp_deployment_manager',  # How you named your package folder
     packages=['lcdp_deployment_manager'],  # Chose the same as "name"
-    version='1.2.5rc3985-3',  # Start with a small number and increase it with every change you make
+    version='1.2.5rc3985-4',  # Start with a small number and increase it with every change you make
     license='MIT',  # Chose a license from here: https://help.github.com/articles/licensing-a-repository
     # description: Give a short description about your library
     long_description_content_type="text/plain",
@@ -14,7 +14,7 @@ setup(
     # url: Provide either the link to your github or to your website
     url='https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager',
     # download_url: Up the version (use the same version as in "version")
-    download_url='https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager/archive/1.2.5rc3985-3.tar.gz',
+    download_url='https://github.com/LeComptoirDesPharmacies/lcdp-deployment-manager/archive/1.2.5rc3985-4.tar.gz',
     keywords=['AWS', 'Python', 'Deployment'],  # Keywords that define your package best
     classifiers=[
         'Development Status :: 3 - Alpha',
