@@ -1,5 +1,4 @@
 import time
-from functools import reduce
 
 from . import common as common
 from . import constant as constant
@@ -135,7 +134,7 @@ class DeploymentManager:
     # Ajout d'un tag a tous les repository d'un environement
     def add_tag_to_repositories(self, tag):
         for r in self.repositories:
-            r.add_tag(tag)
+            r.add_tag(tag.upper())
 
     def set_color_to_list_repositories_name(self, repositories_name):
         print('Add color {} to mismatched repositories: {}'.format(self.prod_color, repositories_name))
@@ -223,7 +222,7 @@ class Environment:
         if constant.HEALTHCHECK_RETRY_LIMIT < retry:
             print("Tried {} but retry limit has been reach before all services been healthy".format(retry))
             # Raise exception
-            unhealthy_sve = reduce(lambda a, b: a.service_arn + ',' + b.service_arn, self.get_unhealthy_services())
+            unhealthy_sve = ",".join(list(map(lambda a: a.service_arn, self.get_unhealthy_services())))
             raise Exception("Unable to deploy, services still unhealthy. Unhealthy Services : {}".format(unhealthy_sve))
         else:
             print("Tried {} and all service are now healthy".format(retry))
