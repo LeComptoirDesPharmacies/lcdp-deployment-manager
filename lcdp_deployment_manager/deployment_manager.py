@@ -134,7 +134,7 @@ class DeploymentManager:
     # Ajout d'un tag a tous les repository d'un environement
     def add_tag_to_repositories(self, tag):
         for r in self.repositories:
-            r.add_tag(tag.upper())
+            r.add_tag(tag)
 
     def set_color_to_list_repositories_name(self, repositories_name):
         print('Add color {} to mismatched repositories: {}'.format(self.prod_color, repositories_name))
