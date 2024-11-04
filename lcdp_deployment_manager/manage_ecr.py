@@ -23,7 +23,7 @@ def get_repository_image_for_tag(repository_name, tag):
         maxResults=1000
     )
     for image in images['imageIds']:
-        if 'imageTag' in image and image['imageTag'] == tag.upper():
+        if 'imageTag' in image and image['imageTag'].upper() == tag.upper():
             return image
 
 
