@@ -21,7 +21,7 @@ jobs:
           python-version: '3.12'
 
       - name: Update setup.py version
-        run :
+        run : |
           if [[ "${{ github.event_name }}" == "release" ]]; then
             VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,' | sed 's/^v//')
           else
