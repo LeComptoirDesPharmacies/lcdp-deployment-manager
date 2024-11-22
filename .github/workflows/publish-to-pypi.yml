@@ -23,9 +23,9 @@ jobs:
       - name: Update setup.py version
         run :
           if [[ "${{ github.event_name }}" == "release" ]]; then
-            VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+            VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,' | sed 's/^v//')
           else
-            VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')rc.$(date +%s)
+            VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')rc.${{ github.run_id }}
           fi
           sed -i "s/version='[^']*'/version='$VERSION'/" setup.py
 
