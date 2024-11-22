@@ -1,8 +1,13 @@
 name: Publish Python 🐍 distributions 📦 to PyPI
 
 on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
   release:
-    types: [published]
+    types: [ created ]
 
 jobs:
   build-n-publish:
@@ -14,6 +19,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Update setup.py version
+        run :
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          else
+            VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')rc.$(date +%s)
+          fi
+          sed -i "s/version='[^']*'/version='$VERSION'/" setup.py
 
       - name: Install setuptools, wheel and twine
         run : >-
