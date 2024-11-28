@@ -22,6 +22,8 @@ jobs:
 
       - name: Update setup.py version
         run : |
+          sed -x
+          
           if [[ "${{ github.event_name }}" == "release" ]]; then
             VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,' | sed 's/^v//')
           else
@@ -29,8 +31,10 @@ jobs:
             CURRENT_VERSION=$(grep "version=" setup.py | sed -E "s/.*version='([^']*)',.*$/\1/")
             
             # Si la version contient déjà rc, remplacer juste le numéro rc
+            echo "Current version: CURRENT_VERSION"
             if [[ "$CURRENT_VERSION" == *"rc"* ]]; then
               VERSION=$(echo "$CURRENT_VERSION" | sed -E "s/rc[0-9]+/rc.${{ github.run_id }}/")
+              echo "Version: $VERSION"
             else
               # Sinon, incrémenter la version mineure et ajouter rc
               # Séparer les parties de la version
