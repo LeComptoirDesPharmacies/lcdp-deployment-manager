@@ -30,18 +30,20 @@ jobs:
             VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,' | sed 's/^v//')
           else
             # Récupère la dernière version dans setup.py et ajoute le numéro de run
-            CURRENT_VERSION=$(grep "version=" setup.py | sed -E "s/.*version='([^']*)',/\1/")
+            CURRENT_VERSION=$(grep "version=" setup.py | sed -E "s/.*version='([^']*)',.*$/\1/")
             echo "Current version from setup.py: $CURRENT_VERSION"
             if [[ "$CURRENT_VERSION" == *"rc"* ]]; then
               # Si déjà un rc, remplacer le numéro rc
               VERSION=$(echo "$CURRENT_VERSION" | sed -E "s/rc[0-9]+/rc.${{ github.run_id }}/")
+              echo "Updated RC version: $VERSION"
             else
               # Si pas de rc, ajouter un rc
               VERSION="${CURRENT_VERSION}rc.${{ github.run_id }}"
+              echo "Added RC version: $VERSION"
             fi
           fi
           echo "Final version to be set: $VERSION"
-          sed -i "s/version='[^']*'/version='$VERSION'/" setup.py
+          sed -i "s/version='[^']*',/version='$VERSION',/" setup.py
           cat setup.py
 
       - name: Install setuptools, wheel and twine
