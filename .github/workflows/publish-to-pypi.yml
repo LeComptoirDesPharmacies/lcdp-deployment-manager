@@ -27,12 +27,23 @@ jobs:
           else
             # Récupère la dernière version dans setup.py et ajoute le numéro de run
             CURRENT_VERSION=$(grep "version=" setup.py | sed -E "s/.*version='([^']*)',.*$/\1/")
-            if [[ "$CURRENT_VERSION" == *"rc.post"* ]]; then
-              # Si déjà un rc, remplacer le numéro rc
-              VERSION=$(echo "$CURRENT_VERSION" | sed -E "s/rc[0-9]+/rc.post${{ github.run_id }}/")
+            
+            # Si la version contient déjà rc, remplacer juste le numéro rc
+            if [[ "$CURRENT_VERSION" == *"rc"* ]]; then
+              VERSION=$(echo "$CURRENT_VERSION" | sed -E "s/rc[0-9]+/rc.${{ github.run_id }}/")
             else
-              # Si pas de rc, ajouter un rc
-              VERSION="${CURRENT_VERSION}rc.post${{ github.run_id }}"
+              # Sinon, incrémenter la version mineure et ajouter rc
+              # Séparer les parties de la version
+              MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+              MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+              PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+              
+              # Incrémenter la version mineure
+              NEW_MINOR=$((MINOR + 1))
+              NEW_VERSION="${MAJOR}.${NEW_MINOR}.${PATCH}"
+              
+              # Ajouter le rc
+              VERSION="${NEW_VERSION}rc.${{ github.run_id }}"
             fi
           fi
           sed -i "s/version='[^']*',/version='$VERSION',/" setup.py
