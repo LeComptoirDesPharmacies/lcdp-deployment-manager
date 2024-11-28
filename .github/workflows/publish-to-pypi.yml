@@ -22,7 +22,7 @@ jobs:
 
       - name: Update setup.py version
         run : |
-          sed -x
+          set -x
           
           if [[ "${{ github.event_name }}" == "release" ]]; then
             VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,' | sed 's/^v//')
