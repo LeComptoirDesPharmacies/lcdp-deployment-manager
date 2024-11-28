@@ -48,12 +48,14 @@ jobs:
           fi
           sed -i "s/version='[^']*',/version='$VERSION',/" setup.py
           
-          # push setup.py
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add setup.py
-          git commit -m "Bump version to $VERSION"
-          git push
+          # push setup.py only for release
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add setup.py
+            git commit -m "Bump version to $VERSION"
+            git push
+          fi
 
       - name: Install setuptools, wheel and twine
         run : >-
