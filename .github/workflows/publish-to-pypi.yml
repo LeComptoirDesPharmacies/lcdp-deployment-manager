@@ -1,8 +1,13 @@
 name: Publish Python 🐍 distributions 📦 to PyPI
 
 on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
   release:
-    types: [published]
+    types: [ created ]
 
 jobs:
   build-n-publish:
@@ -14,6 +19,43 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Update setup.py version
+        run : |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,' | sed 's/^v//')
+          else
+            # Récupère la dernière version dans setup.py et ajoute le numéro de run
+            CURRENT_VERSION=$(grep "version=" setup.py | sed -E "s/.*version='([^']*)',.*$/\1/")
+            
+            # Si la version contient déjà rc, remplacer juste le numéro rc
+            if [[ "$CURRENT_VERSION" == *"rc"* ]]; then
+              VERSION=$(echo "$CURRENT_VERSION" | sed -E "s/rc.[0-9]+/rc.${{ github.run_id }}/")
+            else
+              # Sinon, incrémenter la version mineure et ajouter rc
+              # Séparer les parties de la version
+              MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+              MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+              PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+              
+              # Incrémenter la version mineure
+              NEW_PATCH=$((PATCH + 1))
+              NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+              
+              # Ajouter le rc
+              VERSION="${NEW_VERSION}rc.${{ github.run_id }}"
+            fi
+          fi
+          sed -i "s/version='[^']*',/version='$VERSION',/" setup.py
+          
+          # push setup.py only for release
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add setup.py
+            git commit -m "Bump version to $VERSION"
+            git push
+          fi
 
       - name: Install setuptools, wheel and twine
         run : >-
