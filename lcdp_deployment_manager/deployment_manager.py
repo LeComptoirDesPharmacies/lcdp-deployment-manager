@@ -290,14 +290,17 @@ class EcsService:
 
     def shutdown(self):
         print('Shutdown service {}'.format(self.service_arn))
+
+        response = self.__set_register_scalable_target(0)
+        print("Disabled autoscaling for service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 0, response: {}"
+              .format(self.service_arn, self.max_capacity, response))
+
         self.ecs_client.update_service(
             cluster=self.cluster_name,
             service=self.service_arn,
             desiredCount=0
         )
-        response = self.__set_register_scalable_target(0)
-        print("Stopped service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 0, response: {}"
-              .format(self.service_arn, self.max_capacity, response))
+        print("Stopped service: '{}'".format(self.service_arn))
 
     def is_service_healthy(self):
         if not self.service_healthy:
