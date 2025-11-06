@@ -14,7 +14,11 @@ jobs:
     name: Build and publish Python 🐍 distributions 📦 to PyPI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.target_commitish || github.ref }}
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -54,7 +58,7 @@ jobs:
             git config user.email github-actions@github.com
             git add setup.py
             git commit -m "Bump version to $VERSION"
-            git push
+            git push origin HEAD:${{ github.event.release.target_commitish }}
           fi
 
       - name: Install setuptools, wheel and twine
