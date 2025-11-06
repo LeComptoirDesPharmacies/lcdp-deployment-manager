@@ -295,8 +295,6 @@ class EcsService:
         print("Disabled autoscaling for service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: 0, response: {}"
               .format(self.service_arn, self.max_capacity, response))
 
-        time.sleep(1)
-
         self.ecs_client.update_service(
             cluster=self.cluster_name,
             service=self.service_arn,
