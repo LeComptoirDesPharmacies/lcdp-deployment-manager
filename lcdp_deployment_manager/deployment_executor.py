@@ -39,4 +39,4 @@ def deploy_services_of_repositories_name(environment, repositories_name):
 
         # Wait for all service receive startup
         time.sleep(10)
-        environment.wait_for_services_health()
+        environment.all_services_have_at_least_one_healthy_instance()
