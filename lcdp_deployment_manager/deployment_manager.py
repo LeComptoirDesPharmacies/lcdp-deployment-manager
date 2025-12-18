@@ -209,12 +209,15 @@ class Environment:
     def all_services_are_healthy(self):
         return all(s.is_service_healthy() for s in self.ecs_services)
 
+    def all_services_have_at_least_one_healthy_instance(self):
+        return all(s.has_at_least_one_healthy_instance() for s in self.ecs_services)
+
     # Attend que tous les services soit healthy
     def wait_for_services_health(self):
         retry = 1
         print("Waiting {} seconds before first try".format(constant.HEALTHCHECK_SLEEPING_TIME))
         time.sleep(constant.HEALTHCHECK_SLEEPING_TIME)
-        while not self.all_services_are_healthy() and constant.HEALTHCHECK_RETRY_LIMIT >= retry:
+        while not self.all_services_have_at_least_one_healthy_instance() and constant.HEALTHCHECK_RETRY_LIMIT >= retry:
             print("Retry number {} all services hasnt healthy sleeping {} seconds before retry"
                   .format(retry, constant.HEALTHCHECK_SLEEPING_TIME))
             retry = retry + 1
@@ -306,6 +309,22 @@ class EcsService:
         if not self.service_healthy:
             self.service_healthy = self.__check_service_health()
         return self.service_healthy
+
+    def has_at_least_one_healthy_instance(self):
+        tasks = self.__get_task()
+        if not tasks:
+            return False
+        detailed_task = self.ecs_client.describe_tasks(
+            cluster=self.cluster_name,
+            tasks=tasks
+        )
+        nb_healthy_task = len(list(filter(lambda x: x['healthStatus'] == 'HEALTHY', detailed_task['tasks'])))
+        is_healthy = nb_healthy_task >= constant.MINIMUM_HEALTHY_DESIRED_COUNT
+        if is_healthy:
+            print('{} has at least one healthy instance'.format(self.service_arn))
+        else:
+            print('{} has no healthy instance yet'.format(self.service_arn))
+        return is_healthy
 
     def __check_service_health(self):
         tasks = self.__get_task()
