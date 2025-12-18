@@ -311,22 +311,12 @@ class EcsService:
         return self.service_healthy
 
     def has_at_least_one_healthy_instance(self):
-        tasks = self.__get_task()
-        if not tasks:
-            return False
-        detailed_task = self.ecs_client.describe_tasks(
-            cluster=self.cluster_name,
-            tasks=tasks
-        )
-        nb_healthy_task = len(list(filter(lambda x: x['healthStatus'] == 'HEALTHY', detailed_task['tasks'])))
-        is_healthy = nb_healthy_task >= constant.MINIMUM_HEALTHY_DESIRED_COUNT
-        if is_healthy:
-            print('{} has at least one healthy instance'.format(self.service_arn))
-        else:
-            print('{} has no healthy instance yet'.format(self.service_arn))
-        return is_healthy
+        return self.__check_health_with_threshold(constant.MINIMUM_HEALTHY_DESIRED_COUNT)
 
     def __check_service_health(self):
+        return self.__check_health_with_threshold(constant.DEFAULT_DESIRED_COUNT)
+
+    def __check_health_with_threshold(self, min_healthy_count):
         tasks = self.__get_task()
         if not tasks:
             return False
@@ -335,12 +325,13 @@ class EcsService:
             tasks=tasks
         )
         nb_healthy_task = len(list(filter(lambda x: x['healthStatus'] == 'HEALTHY', detailed_task['tasks'])))
-        is_healthy = nb_healthy_task >= constant.DEFAULT_DESIRED_COUNT
+        is_healthy = nb_healthy_task >= min_healthy_count
         if is_healthy:
-            print('{} has reach the healthy state'.format(self.service_arn))
+            print('{} has reached the health threshold with {} healthy task(s) (required: {})'
+                  .format(self.service_arn, nb_healthy_task, min_healthy_count))
         else:
-            print('{} is not healthy, only has {} task(s) healthy and {} healthy tasks are required to pass'
-                  .format(self.service_arn, nb_healthy_task, constant.DEFAULT_DESIRED_COUNT))
+            print('{} has not reached the health threshold: {} healthy task(s) found, {} required'
+                  .format(self.service_arn, nb_healthy_task, min_healthy_count))
         return is_healthy
 
     def __str__(self):
