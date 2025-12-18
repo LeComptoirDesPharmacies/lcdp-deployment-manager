@@ -307,7 +307,7 @@ class EcsService:
 
     def is_service_healthy(self):
         if not self.service_healthy:
-            self.service_healthy = self.__check_service_health()
+            self.service_healthy = self.has_at_least_one_healthy_instance()
         return self.service_healthy
 
     def has_at_least_one_healthy_instance(self):
