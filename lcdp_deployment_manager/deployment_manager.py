@@ -136,6 +136,10 @@ class DeploymentManager:
         for r in self.repositories:
             r.add_tag(tag)
 
+    def get_expected_image_digests_by_repo(self):
+        """Returns a dict mapping repository name to expected imageDigest."""
+        return {r.name: r.image['imageDigest'] for r in self.repositories if r.image}
+
     def set_color_to_list_repositories_name(self, repositories_name):
         print('Add color {} to mismatched repositories: {}'.format(self.prod_color, repositories_name))
 
@@ -188,6 +192,16 @@ class Environment:
         self.ecs_services = ecs_services
         self.target_group_arn = target_group_arn
 
+    def set_expected_image_digests(self, service_arn_to_digest):
+        """Assign the expected image digest to each service.
+        Args:
+            service_arn_to_digest: dict mapping service ARN to expected imageDigest
+        """
+        for svc in self.ecs_services:
+            if svc.service_arn in service_arn_to_digest:
+                svc.expected_image_digest = service_arn_to_digest[svc.service_arn]
+                print('Set expected image digest for {}: {}'.format(svc.service_arn, svc.expected_image_digest))
+
     # Démarre tous les services
     def start_up_services(self, desired_count=None):
         for s in self.ecs_services:
@@ -212,20 +226,21 @@ class Environment:
     def all_services_have_at_least_one_healthy_instance(self):
         return all(s.has_at_least_one_healthy_instance() for s in self.ecs_services)
 
-    # Attend que tous les services soit healthy
-    def wait_for_services_health(self):
+    # Attend que tous les services (ou un sous-ensemble) soient healthy
+    def wait_for_services_health(self, services=None):
+        target_services = services if services is not None else self.ecs_services
         retry = 1
         print("Waiting {} seconds before first try".format(constant.HEALTHCHECK_SLEEPING_TIME))
         time.sleep(constant.HEALTHCHECK_SLEEPING_TIME)
-        while not self.all_services_have_at_least_one_healthy_instance() and constant.HEALTHCHECK_RETRY_LIMIT >= retry:
+        while not all(s.has_at_least_one_healthy_instance() for s in target_services) and constant.HEALTHCHECK_RETRY_LIMIT >= retry:
             print("Retry number {} all services hasnt healthy sleeping {} seconds before retry"
                   .format(retry, constant.HEALTHCHECK_SLEEPING_TIME))
             retry = retry + 1
             time.sleep(constant.HEALTHCHECK_SLEEPING_TIME)
         if constant.HEALTHCHECK_RETRY_LIMIT < retry:
             print("Tried {} but retry limit has been reach before all services been healthy".format(retry))
-            # Raise exception
-            unhealthy_sve = ",".join(list(map(lambda a: a.service_arn, self.get_unhealthy_services())))
+            unhealthy = [s for s in target_services if not s.has_at_least_one_healthy_instance()]
+            unhealthy_sve = ",".join(list(map(lambda a: a.service_arn, unhealthy)))
             raise Exception("Unable to deploy, services still unhealthy. Unhealthy Services : {}".format(unhealthy_sve))
         else:
             print("Tried {} and all service are now healthy".format(retry))
@@ -246,17 +261,19 @@ class EcsService:
     application_autoscaling_client = None
     max_capacity = None
     resource_id = None
+    expected_image_digest = None
 
     def __init__(self, ecs_client, application_autoscaling_client, cluster_name, service_arn, max_capacity,
-                 resource_id):
+                 resource_id, expected_image_digest=None):
         self.ecs_client = ecs_client
         self.cluster_name = cluster_name
         self.service_arn = service_arn
         self.application_autoscaling_client = application_autoscaling_client
         self.max_capacity = max_capacity
         self.resource_id = resource_id
+        self.expected_image_digest = expected_image_digest
 
-    def __get_task(self):
+    def get_running_task_arns(self):
         tasks = self.ecs_client.list_tasks(
             cluster=self.cluster_name,
             serviceName=self.service_arn,
@@ -317,15 +334,26 @@ class EcsService:
         return self.__check_health_with_threshold(constant.DEFAULT_DESIRED_COUNT)
 
     def __check_health_with_threshold(self, min_healthy_count):
-        tasks = self.__get_task()
+        tasks = self.get_running_task_arns()
         if not tasks:
             return False
         detailed_task = self.ecs_client.describe_tasks(
             cluster=self.cluster_name,
             tasks=tasks
         )
-        nb_healthy_task = len(list(filter(lambda x: x['healthStatus'] == 'HEALTHY', detailed_task['tasks'])))
+        running_tasks = [t for t in detailed_task['tasks'] if t['lastStatus'] == 'RUNNING']
+        nb_healthy_task = len([t for t in running_tasks if t['healthStatus'] == 'HEALTHY'])
         is_healthy = nb_healthy_task >= min_healthy_count
+
+        # If we have an expected image digest, verify ALL running tasks use the new image.
+        # This prevents old version tasks from coexisting with new ones during rolling updates.
+        if is_healthy and self.expected_image_digest:
+            old_tasks = self.__get_tasks_with_wrong_digest(running_tasks)
+            if old_tasks:
+                print('{} has {} healthy task(s) but {} task(s) still running with old image digest, waiting for rollout to complete'
+                      .format(self.service_arn, nb_healthy_task, len(old_tasks)))
+                return False
+
         if is_healthy:
             print('{} has reached the health threshold with {} healthy task(s) (required: {})'
                   .format(self.service_arn, nb_healthy_task, min_healthy_count))
@@ -333,6 +361,17 @@ class EcsService:
             print('{} has not reached the health threshold: {} healthy task(s) found, {} required'
                   .format(self.service_arn, nb_healthy_task, min_healthy_count))
         return is_healthy
+
+    def __get_tasks_with_wrong_digest(self, running_tasks):
+        """Returns tasks whose container image digest does not match the expected digest."""
+        old_tasks = []
+        for task in running_tasks:
+            for container in task.get('containers', []):
+                image_digest = container.get('imageDigest', '')
+                if image_digest and image_digest != self.expected_image_digest:
+                    old_tasks.append(task['taskArn'])
+                    break
+        return old_tasks
 
     def __str__(self):
         return self.service_arn
