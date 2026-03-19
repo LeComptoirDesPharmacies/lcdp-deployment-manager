@@ -59,27 +59,15 @@ def ensure_environment_is_shut_down(environment):
     raise Exception("Pre-prod environment still has running tasks after {}s, aborting deployment".format(SHUTDOWN_TIMEOUT))
 
 
-def _build_service_arn_to_digest(environment, repo_name_to_digest):
-    """Build a mapping of service ARN to expected image digest using the repo→service mapping."""
-    repo_service_map = ecs_manager.get_map_of_repo_name_service(environment.color, environment.cluster_name)
-    service_arn_to_digest = {}
-    for repo_name, digest in repo_name_to_digest.items():
-        if repo_name in repo_service_map:
-            service_arn_to_digest[repo_service_map[repo_name].service_arn] = digest
-    return service_arn_to_digest
-
-
 # Démarre tous les services d'un environement et attend qu'il soit entièrement up
-def start_environment_and_wait_for_health(environment, repo_name_to_digest=None):
-    if repo_name_to_digest:
-        service_arn_to_digest = _build_service_arn_to_digest(environment, repo_name_to_digest)
-        print("Digest verification enabled for {} services".format(len(service_arn_to_digest)))
-        environment.set_expected_image_digests(service_arn_to_digest)
-    else:
-        print("Digest verification disabled (no digest mapping provided)")
+def start_environment_and_wait_for_health(environment, verify_rollout=False):
+    if verify_rollout:
+        print("Rollout verification enabled for all {} services".format(len(environment.ecs_services)))
+        environment.enable_rollout_verification()
     print("Starting all {} services in {} environment".format(len(environment.ecs_services), environment.color))
     environment.start_up_services()
-    print("Waiting for all services to be healthy with correct image digest...")
+    print("Waiting for all services to be healthy{}...".format(
+        " and rollout complete" if verify_rollout else ""))
     environment.wait_for_services_health()
 
 
@@ -93,19 +81,10 @@ def do_balancing(deployment_manager, from_environment, to_environment):
     )
 
 
-def deploy_services_of_repositories_name(environment, repositories_name, repo_name_to_digest=None):
+def deploy_services_of_repositories_name(environment, repositories_name, verify_rollout=False):
     print("Deploy services for repositories: {}".format(repositories_name))
 
     repo_name_service_map = ecs_manager.get_map_of_repo_name_service(environment.color, environment.cluster_name)
-
-    # Set expected digests on the environment's own services (not the throwaway instances from the map)
-    if repo_name_to_digest:
-        service_arn_to_digest = {}
-        for repo_name, digest in repo_name_to_digest.items():
-            if repo_name in repo_name_service_map:
-                service_arn_to_digest[repo_name_service_map[repo_name].service_arn] = digest
-        print("Digest verification enabled for {} services".format(len(service_arn_to_digest)))
-        environment.set_expected_image_digests(service_arn_to_digest)
 
     # Collect environment services that match the repositories to deploy
     services_to_start = []
@@ -121,6 +100,10 @@ def deploy_services_of_repositories_name(environment, repositories_name, repo_na
     print("Matched {} services to redeploy out of {} repositories".format(
         len(services_to_start), len(repositories_name)))
 
+    if verify_rollout and services_to_start:
+        print("Rollout verification enabled for {} services".format(len(services_to_start)))
+        environment.enable_rollout_verification(services=services_to_start)
+
     if services_to_start:
         for service in services_to_start:
             print("Start service {}".format(service.resource_id))
@@ -128,7 +111,8 @@ def deploy_services_of_repositories_name(environment, repositories_name, repo_na
 
         # Wait only for the deployed services to be healthy (not all services in the environment)
         time.sleep(10)
-        print("Waiting for {} redeployed services to be healthy with correct image digest...".format(len(services_to_start)))
+        print("Waiting for {} redeployed services to be healthy{}...".format(
+            len(services_to_start), " and rollout complete" if verify_rollout else ""))
         environment.wait_for_services_health(services=services_to_start)
     else:
         print("No matching services found to redeploy")

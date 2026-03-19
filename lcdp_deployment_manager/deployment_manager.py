@@ -136,10 +136,6 @@ class DeploymentManager:
         for r in self.repositories:
             r.add_tag(tag)
 
-    def get_expected_image_digests_by_repo(self):
-        """Returns a dict mapping repository name to expected imageDigest."""
-        return {r.name: r.image['imageDigest'] for r in self.repositories if r.image}
-
     def set_color_to_list_repositories_name(self, repositories_name):
         print('Add color {} to mismatched repositories: {}'.format(self.prod_color, repositories_name))
 
@@ -192,15 +188,15 @@ class Environment:
         self.ecs_services = ecs_services
         self.target_group_arn = target_group_arn
 
-    def set_expected_image_digests(self, service_arn_to_digest):
-        """Assign the expected image digest to each service.
+    def enable_rollout_verification(self, services=None):
+        """Enable rollout verification on services to ensure no old tasks coexist with new ones.
         Args:
-            service_arn_to_digest: dict mapping service ARN to expected imageDigest
+            services: list of EcsService to enable on (defaults to all services)
         """
-        for svc in self.ecs_services:
-            if svc.service_arn in service_arn_to_digest:
-                svc.expected_image_digest = service_arn_to_digest[svc.service_arn]
-                print('Set expected image digest for {}: {}'.format(svc.service_arn, svc.expected_image_digest))
+        target_services = services if services is not None else self.ecs_services
+        for svc in target_services:
+            svc.verify_rollout_complete = True
+            print('Rollout verification enabled for {}'.format(svc.service_arn))
 
     # Démarre tous les services
     def start_up_services(self, desired_count=None):
@@ -261,17 +257,16 @@ class EcsService:
     application_autoscaling_client = None
     max_capacity = None
     resource_id = None
-    expected_image_digest = None
+    verify_rollout_complete = False
 
     def __init__(self, ecs_client, application_autoscaling_client, cluster_name, service_arn, max_capacity,
-                 resource_id, expected_image_digest=None):
+                 resource_id):
         self.ecs_client = ecs_client
         self.cluster_name = cluster_name
         self.service_arn = service_arn
         self.application_autoscaling_client = application_autoscaling_client
         self.max_capacity = max_capacity
         self.resource_id = resource_id
-        self.expected_image_digest = expected_image_digest
 
     def get_running_task_arns(self):
         tasks = self.ecs_client.list_tasks(
@@ -345,13 +340,10 @@ class EcsService:
         nb_healthy_task = len([t for t in running_tasks if t['healthStatus'] == 'HEALTHY'])
         is_healthy = nb_healthy_task >= min_healthy_count
 
-        # If we have an expected image digest, verify ALL running tasks use the new image.
-        # This prevents old version tasks from coexisting with new ones during rolling updates.
-        if is_healthy and self.expected_image_digest:
-            old_tasks = self.__get_tasks_with_wrong_digest(running_tasks)
-            if old_tasks:
-                print('{} has {} healthy task(s) but {} task(s) still running with old image digest, waiting for rollout to complete'
-                      .format(self.service_arn, nb_healthy_task, len(old_tasks)))
+        # Verify the rolling update is fully complete (only PRIMARY deployment remains).
+        # This prevents old version tasks from coexisting with new ones.
+        if is_healthy and self.verify_rollout_complete:
+            if not self.__has_completed_rollout():
                 return False
 
         if is_healthy:
@@ -362,16 +354,26 @@ class EcsService:
                   .format(self.service_arn, nb_healthy_task, min_healthy_count))
         return is_healthy
 
-    def __get_tasks_with_wrong_digest(self, running_tasks):
-        """Returns tasks whose container image digest does not match the expected digest."""
-        old_tasks = []
-        for task in running_tasks:
-            for container in task.get('containers', []):
-                image_digest = container.get('imageDigest', '')
-                if image_digest and image_digest != self.expected_image_digest:
-                    old_tasks.append(task['taskArn'])
-                    break
-        return old_tasks
+    def __has_completed_rollout(self):
+        """Check that no old deployment has running tasks, meaning the rolling update is done.
+        ECS may keep old deployment records briefly after tasks stop, so we check runningCount
+        rather than deployment count."""
+        response = self.ecs_client.describe_services(
+            cluster=self.cluster_name,
+            services=[self.service_arn]
+        )
+        service = response['services'][0]
+        deployments = service.get('deployments', [])
+        old_deployments_with_tasks = [d for d in deployments
+                                      if d['status'] != 'PRIMARY' and d['runningCount'] > 0]
+        if not old_deployments_with_tasks:
+            print('{} rollout complete: no old deployment has running tasks'.format(self.service_arn))
+            return True
+        deployment_info = ['{} (status={}, running={}, desired={})'.format(
+            d['id'], d['status'], d['runningCount'], d['desiredCount']) for d in deployments]
+        print('{} rollout in progress: {} old deployment(s) still have running tasks - {}'.format(
+            self.service_arn, len(old_deployments_with_tasks), ', '.join(deployment_info)))
+        return False
 
     def __str__(self):
         return self.service_arn
