@@ -21,7 +21,16 @@ def _wait_for_active_jobs_to_complete(environment):
 
         elapsed = int(time.time() - start_time)
         if elapsed > 600:
-            raise Exception("Smuggler jobs still active after 600s. Active: {}. Aborting deployment".format(active_jobs))
+            raise Exception(
+                "\n"
+                "/!\\ /!\\ /!\\ ECHEC DU DEPLOIEMENT /!\\ /!\\ /!\\\n"
+                "\n"
+                "{} job(s) smuggler toujours actif(s) apres 10 minutes d'attente.\n"
+                "\n"
+                "=> RELANCEZ LE DEPLOIEMENT.\n"
+                "\n"
+                "/!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\\n".format(active_jobs)
+            )
 
         print("Waiting for smuggler jobs to complete: {} active ({}s / 600s)".format(active_jobs, elapsed))
         time.sleep(SHUTDOWN_CHECK_INTERVAL)
@@ -56,7 +65,18 @@ def ensure_environment_is_shut_down(environment):
             running_task_count, elapsed, SHUTDOWN_TIMEOUT, ', '.join(services_with_tasks)))
         time.sleep(SHUTDOWN_CHECK_INTERVAL)
 
-    raise Exception("Pre-prod environment still has running tasks after {}s, aborting deployment".format(SHUTDOWN_TIMEOUT))
+    raise Exception(
+        "\n"
+        "/!\\ /!\\ /!\\ ECHEC DU SHUTDOWN /!\\ /!\\ /!\\\n"
+        "\n"
+        "Le pre-prod a encore {} task(s) running apres {} secondes d'attente.\n"
+        "Services concernes : {}\n"
+        "\n"
+        "=> RELANCEZ LE DEPLOIEMENT. Si le probleme persiste, verifiez l'etat des services dans la console ECS.\n"
+        "\n"
+        "/!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\\n".format(
+            running_task_count, SHUTDOWN_TIMEOUT, ', '.join(services_with_tasks))
+    )
 
 
 # Démarre tous les services d'un environement et attend qu'il soit entièrement up
