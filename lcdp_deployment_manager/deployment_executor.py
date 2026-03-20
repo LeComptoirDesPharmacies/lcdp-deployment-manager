@@ -12,8 +12,8 @@ def _wait_for_active_jobs_to_complete(environment):
     """Wait for all smuggler jobs to complete before shutting down, max 10 minutes."""
     # start_time = time.time()
     # while True:
-    #     metrics = environment.get_active_and_pending_smuggler_jobs()
-    #     active_jobs = metrics.get('active_jobs', 0)
+    metrics = environment.get_active_and_pending_smuggler_jobs()
+    active_jobs = metrics.get('active_jobs', 0)
     #
     #     if active_jobs == 0:
     #         print("No active smuggler jobs, safe to proceed with shutdown")
@@ -67,7 +67,7 @@ def ensure_environment_is_shut_down(environment):
 
     raise Exception(
         "\n"
-        "/!\\ /!\\ /!\\ ECHEC DU SHUTDOWN /!\\ /!\\ /!\\\n"
+        "/!\\ /!\\ /!\\ ECHEC DU DEPLOIEMENT /!\\ /!\\ /!\\\n"
         "\n"
         "Le pre-prod a encore {} task(s) running apres {} secondes d'attente.\n"
         "Services concernes : {}\n"
