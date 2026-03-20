@@ -10,30 +10,30 @@ SHUTDOWN_TIMEOUT = 900  # 15 minutes max, same as Lambda timeout budget
 
 def _wait_for_active_jobs_to_complete(environment):
     """Wait for all smuggler jobs to complete before shutting down, max 10 minutes."""
-    start_time = time.time()
-    while True:
-        metrics = environment.get_active_and_pending_smuggler_jobs()
-        active_jobs = metrics.get('active_jobs', 0)
+    # start_time = time.time()
+    # while True:
+    #     metrics = environment.get_active_and_pending_smuggler_jobs()
+    #     active_jobs = metrics.get('active_jobs', 0)
+    #
+    #     if active_jobs == 0:
+    #         print("No active smuggler jobs, safe to proceed with shutdown")
+    #         return
+    #
+    #     elapsed = int(time.time() - start_time)
+    #     if elapsed > 600:
+    raise Exception(
+        "\n"
+        "/!\\ /!\\ /!\\ ECHEC DU DEPLOIEMENT /!\\ /!\\ /!\\\n"
+        "\n"
+        "{} job(s) smuggler toujours actif(s) apres 10 minutes d'attente.\n"
+        "\n"
+        "=> RELANCEZ LE DEPLOIEMENT.\n"
+        "\n"
+        "/!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\\n".format(active_jobs)
+    )
 
-        if active_jobs == 0:
-            print("No active smuggler jobs, safe to proceed with shutdown")
-            return
-
-        elapsed = int(time.time() - start_time)
-        if elapsed > 600:
-            raise Exception(
-                "\n"
-                "/!\\ /!\\ /!\\ ECHEC DU DEPLOIEMENT /!\\ /!\\ /!\\\n"
-                "\n"
-                "{} job(s) smuggler toujours actif(s) apres 10 minutes d'attente.\n"
-                "\n"
-                "=> RELANCEZ LE DEPLOIEMENT.\n"
-                "\n"
-                "/!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\\n".format(active_jobs)
-            )
-
-        print("Waiting for smuggler jobs to complete: {} active ({}s / 600s)".format(active_jobs, elapsed))
-        time.sleep(SHUTDOWN_CHECK_INTERVAL)
+        # print("Waiting for smuggler jobs to complete: {} active ({}s / 600s)".format(active_jobs, elapsed))
+        # time.sleep(SHUTDOWN_CHECK_INTERVAL)
 
 
 def ensure_environment_is_shut_down(environment):
