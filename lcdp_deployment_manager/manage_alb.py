@@ -32,9 +32,9 @@ def get_current_listener(alb_arn, ssl_enabled):
     return __get_listener(alb_desc, ssl_enabled)
 
 
-def get_production_color(listener):
+def get_active_color(listener):
     """
-    Récupère la couleur actuellement en production
+    Recupere la couleur de l'environnement actif (celui qui recoit le trafic)
     :param listener:    listener actuel
     :type listener:     dict
     :return:            BLUE/GREEN
@@ -43,9 +43,9 @@ def get_production_color(listener):
     current_target_group_arn = __get_default_forward_target_group_arn_from_listener(listener)
     return __get_color_from_resource(current_target_group_arn)
 
-def get_production_type(listener):
+def get_active_type(listener):
     """
-    Récupère le type actuellement en production
+    Recupere le type de l'environnement actif
     :param listener:    listener actuel
     :type listener:     dict
     :return:            default/maintenance

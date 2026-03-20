@@ -16,7 +16,7 @@ class DeploymentManager:
     default_target_group = None
     rules = []
     repositories = []
-    prod_color = None
+    active_color = None
     blue_environment = {}
     green_environment = {}
 
@@ -24,7 +24,7 @@ class DeploymentManager:
     elbv2_client = None
 
     def __init__(self, elbv2_client, alb, http_listener, rules, repositories,
-                 prod_color, current_target_group_type,
+                 active_color, current_target_group_type,
                  blue_environment,
                  green_environment):
         self.elbv2_client = elbv2_client
@@ -32,7 +32,7 @@ class DeploymentManager:
         self.http_listener = http_listener
         self.rules = rules
         self.repositories = repositories
-        self.prod_color = prod_color
+        self.active_color = active_color
         self.current_target_group_type = current_target_group_type
         self.blue_environment = blue_environment
         self.green_environment = green_environment
@@ -54,19 +54,21 @@ class DeploymentManager:
         else:
             return None
 
-    def get_production_environment(self):
-        if self.prod_color == constant.BLUE:
+    def get_active_environment(self):
+        """Retourne l'environnement qui recoit actuellement le trafic."""
+        if self.active_color == constant.BLUE:
             return self.blue_environment
-        elif self.prod_color == constant.GREEN:
+        elif self.active_color == constant.GREEN:
             return self.green_environment
-        raise Exception('Unable to get prod environment...')
+        raise Exception('Unable to get active environment...')
 
-    def get_pre_production_environment(self):
-        if self.prod_color == constant.GREEN:
+    def get_inactive_environment(self):
+        """Retourne l'environnement qui ne recoit pas de trafic."""
+        if self.active_color == constant.GREEN:
             return self.blue_environment
-        elif self.prod_color == constant.BLUE:
+        elif self.active_color == constant.BLUE:
             return self.green_environment
-        raise Exception('Unable to get pre prod environment...')
+        raise Exception('Unable to get inactive environment...')
 
     def create_rule(self, conditions, actions, priority, tags):
         self.elbv2_client.create_rule(
@@ -137,18 +139,18 @@ class DeploymentManager:
             r.add_tag(tag)
 
     def set_color_to_list_repositories_name(self, repositories_name):
-        print('Add color {} to mismatched repositories: {}'.format(self.prod_color, repositories_name))
+        print('Add color {} to mismatched repositories: {}'.format(self.active_color, repositories_name))
 
         for r in self.repositories:
             if r.name in repositories_name:
-                r.add_tag(self.prod_color.upper())
+                r.add_tag(self.active_color.upper())
 
     # Cherche les repositories qui ont un tag mais pour lesquels la couleur active n'est pas appliquée et applique la
     def find_mismatched_repositories_name_between_tag_and_active_color(self, tag):
         return ecr_manager.find_mismatched_repositories_between_tag_and_color(
             ecr_manager.get_service_repositories_name(),
             tag,
-            self.prod_color)
+            self.active_color)
 
     def get_lowest_available_priority_alb_rule(self):
         used_priorities = set()

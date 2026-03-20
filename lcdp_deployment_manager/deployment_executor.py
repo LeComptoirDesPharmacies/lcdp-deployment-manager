@@ -4,8 +4,9 @@ from . import constant as constant
 from . import manage_ecs as ecs_manager
 
 
-SHUTDOWN_CHECK_INTERVAL = 15  # seconds between polls
-SHUTDOWN_TIMEOUT = 900  # 15 minutes max, same as Lambda timeout budget
+SHUTDOWN_CHECK_INTERVAL = 15  # secondes entre chaque verification
+SHUTDOWN_TIMEOUT = 900  # 15 minutes max, correspond au timeout max de la Lambda
+SMUGGLER_JOBS_TIMEOUT = 600  # 10 minutes max, laisse assez de temps pour le shutdown + health check dans le timeout Lambda
 
 
 def _wait_for_active_jobs_to_complete(environment):
@@ -20,7 +21,7 @@ def _wait_for_active_jobs_to_complete(environment):
             return
 
         elapsed = int(time.time() - start_time)
-        if elapsed > 600:
+        if elapsed > SMUGGLER_JOBS_TIMEOUT:
             raise Exception(
                 "\n\n"
                 "/!\\ /!\\ /!\\ ECHEC DU DEPLOIEMENT /!\\ /!\\ /!\\\n"
@@ -32,7 +33,7 @@ def _wait_for_active_jobs_to_complete(environment):
                 "/!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\\n\n".format(active_jobs)
             )
 
-        print("Waiting for smuggler jobs to complete: {} active ({}s / 600s)".format(active_jobs, elapsed))
+        print("Waiting for smuggler jobs to complete: {} active ({}s / {}s)".format(active_jobs, elapsed, SMUGGLER_JOBS_TIMEOUT))
         time.sleep(SHUTDOWN_CHECK_INTERVAL)
 
 
@@ -57,24 +58,24 @@ def ensure_environment_is_shut_down(environment):
 
         if running_task_count == 0:
             elapsed = int(time.time() - start_time)
-            print("Pre-prod environment fully shut down in {}s, 0 tasks running".format(elapsed))
+            print("{} environment fully shut down in {}s, 0 tasks running".format(environment.color.upper(), elapsed))
             return
 
         elapsed = int(time.time() - start_time)
-        print("Waiting for pre-prod shutdown: {} task(s) still running ({}s / {}s) - services: {}".format(
-            running_task_count, elapsed, SHUTDOWN_TIMEOUT, ', '.join(services_with_tasks)))
+        print("Waiting for {} shutdown: {} task(s) still running ({}s / {}s) - services: {}".format(
+            environment.color.upper(), running_task_count, elapsed, SHUTDOWN_TIMEOUT, ', '.join(services_with_tasks)))
         time.sleep(SHUTDOWN_CHECK_INTERVAL)
 
     raise Exception(
-        "\n"
+        "\n\n"
         "/!\\ /!\\ /!\\ ECHEC DU DEPLOIEMENT /!\\ /!\\ /!\\\n"
         "\n"
-        "Le pre-prod a encore {} task(s) running apres {} secondes d'attente.\n"
+        "L'environnement a encore {} task(s) running apres {} secondes d'attente.\n"
         "Services concernes : {}\n"
         "\n"
         "=> RELANCEZ LE DEPLOIEMENT. Si le probleme persiste, verifiez l'etat des services dans la console ECS.\n"
         "\n"
-        "/!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\\n".format(
+        "/!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\ /!\\\n\n".format(
             running_task_count, SHUTDOWN_TIMEOUT, ', '.join(services_with_tasks))
     )
 

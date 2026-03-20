@@ -17,8 +17,8 @@ def build_deployment_manager(alb_name, cluster_name, img_deploy_tag, ssl_enabled
     alb = alb_manager.get_alb_from_aws(alb_name)
     listener = alb_manager.get_current_listener(alb['LoadBalancerArn'], ssl_enabled)
     rules = alb_manager.get_uncolored_rules(listener)
-    prod_color = alb_manager.get_production_color(listener)
-    current_target_group_type = alb_manager.get_production_type(listener)
+    active_color = alb_manager.get_active_color(listener)
+    current_target_group_type = alb_manager.get_active_type(listener)
     repositories = list(
         map(lambda x: __build_repository(x, img_deploy_tag), ecr_manager.get_service_repositories_name()))
     green_environment = __build_environment(constant.GREEN, current_target_group_type,
@@ -31,7 +31,7 @@ def build_deployment_manager(alb_name, cluster_name, img_deploy_tag, ssl_enabled
         alb=alb,
         http_listener=listener,
         rules=[r for r in rules if r],
-        prod_color=prod_color,
+        active_color=active_color,
         current_target_group_type=current_target_group_type,
         repositories=[r for r in repositories if r],
         green_environment=green_environment,
