@@ -1,4 +1,5 @@
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from . import common as common
 from . import constant as constant
@@ -200,17 +201,17 @@ class Environment:
             svc.verify_rollout_complete = True
             print('Rollout verification enabled for {}'.format(svc.service_arn))
 
-    # Démarre tous les services
+    # Démarre tous les services en parallèle
     def start_up_services(self, desired_count=None):
-        for s in self.ecs_services:
-            s.start(desired_count)
+        with ThreadPoolExecutor(max_workers=len(self.ecs_services)) as executor:
+            list(executor.map(lambda s: s.start(desired_count), self.ecs_services))
         # Wait for all service receive startup
         time.sleep(10)
 
     # Eteint tous les services
     def shutdown_services(self):
-        for s in self.ecs_services:
-            s.shutdown()
+        with ThreadPoolExecutor(max_workers=len(self.ecs_services)) as executor:
+            list(executor.map(lambda s: s.shutdown(), self.ecs_services))
         # Wait for all service receive shutdown
         time.sleep(10)
 
@@ -295,12 +296,32 @@ class EcsService:
         if not desired_count:
             desired_count = constant.DEFAULT_DESIRED_COUNT
         print('Start service {} with {} instances'.format(self.service_arn, desired_count))
+        # First update the ECS SHA1 image to pull
+        response = self.ecs_client.update_service(
+            cluster=self.cluster_name,
+            service=self.service_arn,
+            forceNewDeployment=True
+        )
+
+        # Then, wait for the deployment to be done
+        print('Waiting for deployment of service {} to stabilize...'.format(self.service_arn))
+        waiter = self.ecs_client.get_waiter('services_stable')
+        waiter.wait(
+            cluster=self.cluster_name,
+            services=[self.service_arn],
+            WaiterConfig={
+                'Delay': 10,  # vérifie toutes les 10s
+                'MaxAttempts': 30  # timeout après 5 minutes
+            }
+        )
+
+        # Deployment is ready, increase the number of service
         self.ecs_client.update_service(
             cluster=self.cluster_name,
             service=self.service_arn,
             desiredCount=desired_count,
-            forceNewDeployment=True
         )
+
         response = self.__set_register_scalable_target(desired_count)
         print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: {}, response: {}"
               .format(self.service_arn, self.max_capacity, desired_count, response))
