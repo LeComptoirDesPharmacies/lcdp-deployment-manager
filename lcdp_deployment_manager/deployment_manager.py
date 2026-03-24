@@ -1,5 +1,5 @@
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 from . import common as common
 from . import constant as constant
@@ -203,15 +203,8 @@ class Environment:
 
     # Démarre tous les services en parallèle
     def start_up_services(self, desired_count=None):
-        with ThreadPoolExecutor(max_workers=len(self.ecs_services)) as executor:
-            futures = {executor.submit(s.start, desired_count): s for s in self.ecs_services}
-            for future in as_completed(futures):
-                service = futures[future]
-                try:
-                    future.result()
-                except Exception as e:
-                    print("Error starting service {}: {}".format(service.service_arn, e))
-                    raise
+        with ThreadPoolExecutor() as executor:
+            list(executor.map(lambda s: s.start(desired_count), self.ecs_services))
         # Wait for all service receive startup
         time.sleep(10)
 
