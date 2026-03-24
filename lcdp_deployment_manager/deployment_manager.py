@@ -297,9 +297,10 @@ class EcsService:
             desired_count = constant.DEFAULT_DESIRED_COUNT
         print('Start service {} with {} instances'.format(self.service_arn, desired_count))
         # First update the ECS SHA1 image to pull
-        response = self.ecs_client.update_service(
+        self.ecs_client.update_service(
             cluster=self.cluster_name,
             service=self.service_arn,
+            desiredCount=desired_count,
             forceNewDeployment=True
         )
 
@@ -313,13 +314,6 @@ class EcsService:
                 'Delay': 10,  # vérifie toutes les 10s
                 'MaxAttempts': 30  # timeout après 5 minutes
             }
-        )
-
-        # Deployment is ready, increase the number of service
-        self.ecs_client.update_service(
-            cluster=self.cluster_name,
-            service=self.service_arn,
-            desiredCount=desired_count,
         )
 
         response = self.__set_register_scalable_target(desired_count)
