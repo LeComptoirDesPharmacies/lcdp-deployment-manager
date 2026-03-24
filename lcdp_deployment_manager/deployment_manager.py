@@ -203,15 +203,15 @@ class Environment:
 
     # Démarre tous les services en parallèle
     def start_up_services(self, desired_count=None):
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=len(self.ecs_services)) as executor:
             list(executor.map(lambda s: s.start(desired_count), self.ecs_services))
         # Wait for all service receive startup
         time.sleep(10)
 
     # Eteint tous les services
     def shutdown_services(self):
-        for s in self.ecs_services:
-            s.shutdown()
+        with ThreadPoolExecutor(max_workers=len(self.ecs_services)) as executor:
+            list(executor.map(lambda s: s.shutdown(), self.ecs_services))
         # Wait for all service receive shutdown
         time.sleep(10)
 
@@ -304,7 +304,7 @@ class EcsService:
         )
 
         # Then, wait for the deployment to be done
-        print('Waiting for deployment to stabilize...')
+        print('Waiting for deployment of service {} to stabilize...'.format(self.service_arn))
         waiter = self.ecs_client.get_waiter('services_stable')
         waiter.wait(
             cluster=self.cluster_name,
