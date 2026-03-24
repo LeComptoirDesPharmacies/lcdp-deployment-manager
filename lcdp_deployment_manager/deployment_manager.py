@@ -295,12 +295,32 @@ class EcsService:
         if not desired_count:
             desired_count = constant.DEFAULT_DESIRED_COUNT
         print('Start service {} with {} instances'.format(self.service_arn, desired_count))
+        # First update the ECS SHA1 image to pull
+        response = self.ecs_client.update_service(
+            cluster=self.cluster_name,
+            service=self.service_arn,
+            forceNewDeployment=True
+        )
+
+        # Then, wait for the deployment to be done
+        print('Waiting for deployment to stabilize...')
+        waiter = self.ecs_client.get_waiter('services_stable')
+        waiter.wait(
+            cluster=self.cluster_name,
+            services=[self.service_arn],
+            WaiterConfig={
+                'Delay': 10,  # vérifie toutes les 10s
+                'MaxAttempts': 30  # timeout après 5 minutes
+            }
+        )
+
+        # Deployment is ready, increase the number of service
         self.ecs_client.update_service(
             cluster=self.cluster_name,
             service=self.service_arn,
             desiredCount=desired_count,
-            forceNewDeployment=True
         )
+
         response = self.__set_register_scalable_target(desired_count)
         print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: {}, response: {}"
               .format(self.service_arn, self.max_capacity, desired_count, response))
