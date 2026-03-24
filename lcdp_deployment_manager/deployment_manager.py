@@ -1,4 +1,5 @@
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from . import common as common
 from . import constant as constant
@@ -16,7 +17,7 @@ class DeploymentManager:
     default_target_group = None
     rules = []
     repositories = []
-    prod_color = None
+    active_color = None
     blue_environment = {}
     green_environment = {}
 
@@ -24,7 +25,7 @@ class DeploymentManager:
     elbv2_client = None
 
     def __init__(self, elbv2_client, alb, http_listener, rules, repositories,
-                 prod_color, current_target_group_type,
+                 active_color, current_target_group_type,
                  blue_environment,
                  green_environment):
         self.elbv2_client = elbv2_client
@@ -32,7 +33,7 @@ class DeploymentManager:
         self.http_listener = http_listener
         self.rules = rules
         self.repositories = repositories
-        self.prod_color = prod_color
+        self.active_color = active_color
         self.current_target_group_type = current_target_group_type
         self.blue_environment = blue_environment
         self.green_environment = green_environment
@@ -54,19 +55,21 @@ class DeploymentManager:
         else:
             return None
 
-    def get_production_environment(self):
-        if self.prod_color == constant.BLUE:
+    def get_active_environment(self):
+        """Retourne l'environnement qui recoit actuellement le trafic."""
+        if self.active_color == constant.BLUE:
             return self.blue_environment
-        elif self.prod_color == constant.GREEN:
+        elif self.active_color == constant.GREEN:
             return self.green_environment
-        raise Exception('Unable to get prod environment...')
+        raise Exception('Unable to get active environment...')
 
-    def get_pre_production_environment(self):
-        if self.prod_color == constant.GREEN:
+    def get_inactive_environment(self):
+        """Retourne l'environnement qui ne recoit pas de trafic."""
+        if self.active_color == constant.GREEN:
             return self.blue_environment
-        elif self.prod_color == constant.BLUE:
+        elif self.active_color == constant.BLUE:
             return self.green_environment
-        raise Exception('Unable to get pre prod environment...')
+        raise Exception('Unable to get inactive environment...')
 
     def create_rule(self, conditions, actions, priority, tags):
         self.elbv2_client.create_rule(
@@ -137,18 +140,18 @@ class DeploymentManager:
             r.add_tag(tag)
 
     def set_color_to_list_repositories_name(self, repositories_name):
-        print('Add color {} to mismatched repositories: {}'.format(self.prod_color, repositories_name))
+        print('Add color {} to mismatched repositories: {}'.format(self.active_color, repositories_name))
 
         for r in self.repositories:
             if r.name in repositories_name:
-                r.add_tag(self.prod_color.upper())
+                r.add_tag(self.active_color.upper())
 
     # Cherche les repositories qui ont un tag mais pour lesquels la couleur active n'est pas appliquée et applique la
     def find_mismatched_repositories_name_between_tag_and_active_color(self, tag):
         return ecr_manager.find_mismatched_repositories_between_tag_and_color(
             ecr_manager.get_service_repositories_name(),
             tag,
-            self.prod_color)
+            self.active_color)
 
     def get_lowest_available_priority_alb_rule(self):
         used_priorities = set()
@@ -188,17 +191,27 @@ class Environment:
         self.ecs_services = ecs_services
         self.target_group_arn = target_group_arn
 
-    # Démarre tous les services
+    def enable_rollout_verification(self, services=None):
+        """Enable rollout verification on services to ensure no old tasks coexist with new ones.
+        Args:
+            services: list of EcsService to enable on (defaults to all services)
+        """
+        target_services = services if services is not None else self.ecs_services
+        for svc in target_services:
+            svc.verify_rollout_complete = True
+            print('Rollout verification enabled for {}'.format(svc.service_arn))
+
+    # Démarre tous les services en parallèle
     def start_up_services(self, desired_count=None):
-        for s in self.ecs_services:
-            s.start(desired_count)
+        with ThreadPoolExecutor(max_workers=len(self.ecs_services)) as executor:
+            list(executor.map(lambda s: s.start(desired_count), self.ecs_services))
         # Wait for all service receive startup
         time.sleep(10)
 
     # Eteint tous les services
     def shutdown_services(self):
-        for s in self.ecs_services:
-            s.shutdown()
+        with ThreadPoolExecutor(max_workers=len(self.ecs_services)) as executor:
+            list(executor.map(lambda s: s.shutdown(), self.ecs_services))
         # Wait for all service receive shutdown
         time.sleep(10)
 
@@ -212,20 +225,21 @@ class Environment:
     def all_services_have_at_least_one_healthy_instance(self):
         return all(s.has_at_least_one_healthy_instance() for s in self.ecs_services)
 
-    # Attend que tous les services soit healthy
-    def wait_for_services_health(self):
+    # Attend que tous les services (ou un sous-ensemble) soient healthy
+    def wait_for_services_health(self, services=None):
+        target_services = services if services is not None else self.ecs_services
         retry = 1
         print("Waiting {} seconds before first try".format(constant.HEALTHCHECK_SLEEPING_TIME))
         time.sleep(constant.HEALTHCHECK_SLEEPING_TIME)
-        while not self.all_services_have_at_least_one_healthy_instance() and constant.HEALTHCHECK_RETRY_LIMIT >= retry:
+        while not all(s.has_at_least_one_healthy_instance() for s in target_services) and constant.HEALTHCHECK_RETRY_LIMIT >= retry:
             print("Retry number {} all services hasnt healthy sleeping {} seconds before retry"
                   .format(retry, constant.HEALTHCHECK_SLEEPING_TIME))
             retry = retry + 1
             time.sleep(constant.HEALTHCHECK_SLEEPING_TIME)
         if constant.HEALTHCHECK_RETRY_LIMIT < retry:
             print("Tried {} but retry limit has been reach before all services been healthy".format(retry))
-            # Raise exception
-            unhealthy_sve = ",".join(list(map(lambda a: a.service_arn, self.get_unhealthy_services())))
+            unhealthy = [s for s in target_services if not s.has_at_least_one_healthy_instance()]
+            unhealthy_sve = ",".join(list(map(lambda a: a.service_arn, unhealthy)))
             raise Exception("Unable to deploy, services still unhealthy. Unhealthy Services : {}".format(unhealthy_sve))
         else:
             print("Tried {} and all service are now healthy".format(retry))
@@ -246,6 +260,7 @@ class EcsService:
     application_autoscaling_client = None
     max_capacity = None
     resource_id = None
+    verify_rollout_complete = False
 
     def __init__(self, ecs_client, application_autoscaling_client, cluster_name, service_arn, max_capacity,
                  resource_id):
@@ -256,7 +271,7 @@ class EcsService:
         self.max_capacity = max_capacity
         self.resource_id = resource_id
 
-    def __get_task(self):
+    def get_running_task_arns(self):
         tasks = self.ecs_client.list_tasks(
             cluster=self.cluster_name,
             serviceName=self.service_arn,
@@ -281,12 +296,32 @@ class EcsService:
         if not desired_count:
             desired_count = constant.DEFAULT_DESIRED_COUNT
         print('Start service {} with {} instances'.format(self.service_arn, desired_count))
+        # First update the ECS SHA1 image to pull
+        response = self.ecs_client.update_service(
+            cluster=self.cluster_name,
+            service=self.service_arn,
+            forceNewDeployment=True
+        )
+
+        # Then, wait for the deployment to be done
+        print('Waiting for deployment of service {} to stabilize...'.format(self.service_arn))
+        waiter = self.ecs_client.get_waiter('services_stable')
+        waiter.wait(
+            cluster=self.cluster_name,
+            services=[self.service_arn],
+            WaiterConfig={
+                'Delay': 10,  # vérifie toutes les 10s
+                'MaxAttempts': 30  # timeout après 5 minutes
+            }
+        )
+
+        # Deployment is ready, increase the number of service
         self.ecs_client.update_service(
             cluster=self.cluster_name,
             service=self.service_arn,
             desiredCount=desired_count,
-            forceNewDeployment=True
         )
+
         response = self.__set_register_scalable_target(desired_count)
         print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: {}, response: {}"
               .format(self.service_arn, self.max_capacity, desired_count, response))
@@ -317,15 +352,23 @@ class EcsService:
         return self.__check_health_with_threshold(constant.DEFAULT_DESIRED_COUNT)
 
     def __check_health_with_threshold(self, min_healthy_count):
-        tasks = self.__get_task()
+        tasks = self.get_running_task_arns()
         if not tasks:
             return False
         detailed_task = self.ecs_client.describe_tasks(
             cluster=self.cluster_name,
             tasks=tasks
         )
-        nb_healthy_task = len(list(filter(lambda x: x['healthStatus'] == 'HEALTHY', detailed_task['tasks'])))
+        running_tasks = [t for t in detailed_task['tasks'] if t['lastStatus'] == 'RUNNING']
+        nb_healthy_task = len([t for t in running_tasks if t['healthStatus'] == 'HEALTHY'])
         is_healthy = nb_healthy_task >= min_healthy_count
+
+        # Verify the rolling update is fully complete (only PRIMARY deployment remains).
+        # This prevents old version tasks from coexisting with new ones.
+        if is_healthy and self.verify_rollout_complete:
+            if not self.__has_completed_rollout():
+                return False
+
         if is_healthy:
             print('{} has reached the health threshold with {} healthy task(s) (required: {})'
                   .format(self.service_arn, nb_healthy_task, min_healthy_count))
@@ -333,6 +376,27 @@ class EcsService:
             print('{} has not reached the health threshold: {} healthy task(s) found, {} required'
                   .format(self.service_arn, nb_healthy_task, min_healthy_count))
         return is_healthy
+
+    def __has_completed_rollout(self):
+        """Check that no old deployment has running tasks, meaning the rolling update is done.
+        ECS may keep old deployment records briefly after tasks stop, so we check runningCount
+        rather than deployment count."""
+        response = self.ecs_client.describe_services(
+            cluster=self.cluster_name,
+            services=[self.service_arn]
+        )
+        service = response['services'][0]
+        deployments = service.get('deployments', [])
+        old_deployments_with_tasks = [d for d in deployments
+                                      if d['status'] != 'PRIMARY' and d['runningCount'] > 0]
+        if not old_deployments_with_tasks:
+            print('{} rollout complete: no old deployment has running tasks'.format(self.service_arn))
+            return True
+        deployment_info = ['{} (status={}, running={}, desired={})'.format(
+            d['id'], d['status'], d['runningCount'], d['desiredCount']) for d in deployments]
+        print('{} rollout in progress: {} old deployment(s) still have running tasks - {}'.format(
+            self.service_arn, len(old_deployments_with_tasks), ', '.join(deployment_info)))
+        return False
 
     def __str__(self):
         return self.service_arn
