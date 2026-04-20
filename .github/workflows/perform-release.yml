@@ -1,0 +1,84 @@
+name: perform-release
+
+# Must be triggered from a release/v* branch.
+# merge into master → tag → delete release branch → merge master into develop → publish PyPI.
+# setup.py stays at '0.0.0' in git — the real version is injected only for the PyPI build.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  perform-release:
+    name: Perform release (merge → tag → back-merge → publish)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Validate branch name
+        run: |
+          if [[ ! "${{ github.ref_name }}" =~ ^release/v.+ ]]; then
+            echo "::error::This workflow must be triggered from a release/v* branch (got: ${{ github.ref_name }})"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Configure git
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git fetch origin master:master develop:develop
+
+      - name: Extract release version
+        id: version
+        run: |
+          RELEASE_BRANCH="${{ github.ref_name }}"
+          NEW_VERSION="${RELEASE_BRANCH#release/}"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_number=${NEW_VERSION#v}" >> "$GITHUB_OUTPUT"
+          echo "release_branch=$RELEASE_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Merge release branch into master and tag
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          RELEASE_BRANCH="${{ steps.version.outputs.release_branch }}"
+          git checkout master
+          git merge "$RELEASE_BRANCH" -m "Merge $RELEASE_BRANCH into master"
+          git push origin master
+          git tag -a -m "Tagging for release $NEW_VERSION" "$NEW_VERSION"
+          git push origin "$NEW_VERSION"
+
+      - name: Delete release branch
+        run: git push origin --delete "${{ steps.version.outputs.release_branch }}"
+
+      - name: Merge master back into develop
+        run: |
+          git checkout develop
+          git merge master -m "Merge master into develop after release ${{ steps.version.outputs.new_version }}"
+          git push origin develop
+
+      - name: Checkout tag for building
+        run: git checkout "${{ steps.version.outputs.new_version }}"
+
+      - name: Inject version into setup.py (no commit)
+        run: sed -i "s/version='[^']*',/version='${{ steps.version.outputs.version_number }}',/" setup.py
+
+      - name: Install setuptools, wheel and twine
+        run: python -m pip install setuptools wheel twine
+
+      - name: Build a binary wheel and source directory
+        run: python setup.py sdist bdist_wheel
+
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_password }}
