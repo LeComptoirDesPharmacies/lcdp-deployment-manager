@@ -21,18 +21,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Update setup.py version (rc)
+      - name: Inject RC version into setup.py
         run: |
-          CURRENT_VERSION=$(grep "version=" setup.py | sed -E "s/.*version='([^']*)',.*$/\1/")
-          if [[ "$CURRENT_VERSION" == *"rc"* ]]; then
-            VERSION=$(echo "$CURRENT_VERSION" | sed -E "s/rc.[0-9]+/rc.${{ github.run_id }}/")
-          else
-            MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
-            MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
-            PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
-            NEW_PATCH=$((PATCH + 1))
-            VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}rc.${{ github.run_id }}"
-          fi
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          BASE="${LATEST_TAG#v}"
+          MAJOR=$(echo "$BASE" | cut -d. -f1)
+          MINOR=$(echo "$BASE" | cut -d. -f2)
+          PATCH=$(echo "$BASE" | cut -d. -f3)
+          NEXT_PATCH=$((PATCH + 1))
+          VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}rc.${{ github.run_id }}"
           sed -i "s/version='[^']*',/version='$VERSION',/" setup.py
 
       - name: Install setuptools, wheel and twine
