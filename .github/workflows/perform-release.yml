@@ -1,7 +1,6 @@
 name: perform-release
 
 # Must be triggered from a release/v* branch.
-# Reproduces the bitbucket 'perform-release' custom pipeline:
 # bump version → merge into master → tag → delete release branch → merge master into develop → publish PyPI.
 
 on:
