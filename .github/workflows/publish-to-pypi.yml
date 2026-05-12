@@ -3,13 +3,15 @@ name: Publish Python 🐍 distributions 📦 to PyPI
 on:
   push:
     branches:
+      - 'develop'
       - 'feature/**'
       - 'bugfix/**'
       - 'hotfix/**'
+      - 'release/v*'
 
 jobs:
-  build-n-publish-rc:
-    name: Build and publish release candidate 📦 to PyPI
+  build-n-publish:
+    name: Build and publish pre-release 📦 to PyPI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +23,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Inject RC version into setup.py
+      - name: Inject pre-release version into setup.py
         run: |
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           BASE="${LATEST_TAG#v}"
@@ -29,7 +31,15 @@ jobs:
           MINOR=$(echo "$BASE" | cut -d. -f2)
           PATCH=$(echo "$BASE" | cut -d. -f3)
           NEXT_PATCH=$((PATCH + 1))
-          VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}rc.${{ github.run_id }}"
+          if [[ "${{ github.ref_name }}" == release/v* ]]; then
+            # release/vX.Y.Z → X.Y.ZrcN (RC of the planned version)
+            REL_VERSION="${{ github.ref_name }}"
+            REL_VERSION="${REL_VERSION#release/v}"
+            VERSION="${REL_VERSION}rc.${{ github.run_id }}"
+          else
+            # develop and WIP branches → dev snapshot of the next patch
+            VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}.dev${{ github.run_id }}"
+          fi
           sed -i "s/version='[^']*',/version='$VERSION',/" setup.py
 
       - name: Install setuptools, wheel and twine
