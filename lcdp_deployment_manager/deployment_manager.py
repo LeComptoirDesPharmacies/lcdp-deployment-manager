@@ -296,14 +296,14 @@ class EcsService:
         if not desired_count:
             desired_count = constant.DEFAULT_DESIRED_COUNT
         print('Start service {} with {} instances'.format(self.service_arn, desired_count))
-        # First update the ECS SHA1 image to pull
-        response = self.ecs_client.update_service(
+        # First update the ECS SHA1 image to pull (service still at desiredCount=0)
+        self.ecs_client.update_service(
             cluster=self.cluster_name,
             service=self.service_arn,
             forceNewDeployment=True
         )
 
-        # Then, wait for the deployment to be done
+        # Then, wait for the deployment to be in place at desiredCount=0
         print('Waiting for deployment of service {} to stabilize...'.format(self.service_arn))
         waiter = self.ecs_client.get_waiter('services_stable')
         waiter.wait(
@@ -315,13 +315,8 @@ class EcsService:
             }
         )
 
-        # Deployment is ready, increase the number of service
-        self.ecs_client.update_service(
-            cluster=self.cluster_name,
-            service=self.service_arn,
-            desiredCount=desired_count,
-        )
-
+        # Re-enable AAS. AAS enforces MinCapacity by bumping desiredCount to desired_count itself,
+        # so no concurrent update_service(desiredCount=...) is needed (avoids ConcurrentUpdateException).
         response = self.__set_register_scalable_target(desired_count)
         print("Started service: '{}', Updated Capacities => MaxCapacity: {} / MinCapacity: {}, response: {}"
               .format(self.service_arn, self.max_capacity, desired_count, response))
