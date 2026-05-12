@@ -15,6 +15,11 @@ TARGET_GROUP_TYPE_TAG_NAME = 'Type'
 TARGET_GROUP_DEFAULT_TYPE = 'default'
 TARGET_GROUP_MAINTENANCE_TYPE = 'maintenance'
 
+# Scope tag values on ALB listener rules
+TARGET_GROUP_SCOPE_TAG_NAME = 'Scope'
+TARGET_GROUP_SCOPE_WEBAPP = 'webapp'
+TARGET_GROUP_SCOPE_API = 'api'
+
 # ECR
 ECR_SERVICE_PREFIX = 'lcdp-'
 

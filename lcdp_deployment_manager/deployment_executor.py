@@ -95,13 +95,6 @@ def start_environment_and_wait_for_health(environment, verify_rollout=False):
 # Passe d'un environnement à l'autre en modifiant les targets groups des règles du listener
 def do_balancing(deployment_manager, from_environment, to_environment):
     print("Do balancing from environment {} to environment {}".format(from_environment.color, to_environment.color))
-    if to_environment.target_group_arn is None:
-        raise Exception(
-            "Cannot balance to {} environment: no target group found for type '{}' and workspace '{}'. "
-            "The system may be in maintenance mode.".format(
-                to_environment.color, to_environment.target_group_type, to_environment.workspace
-            )
-        )
     deployment_manager.update_rule_target_group(
         expected_rule_type=from_environment.target_group_type,
         expected_rule_color=from_environment.color,

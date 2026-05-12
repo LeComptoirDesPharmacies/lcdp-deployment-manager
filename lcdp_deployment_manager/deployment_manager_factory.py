@@ -65,16 +65,6 @@ def __build_environment(color, target_group_type, cluster_name, workspace):
         services_arn
     ))
 
-    try:
-        target_group_arn = alb_manager.get_target_group_with_type_color_and_workspace(
-            target_group_type, color, workspace
-        )
-    except Exception:
-        # No TG found for this type/color/workspace combination (e.g. when in maintenance mode
-        # there is no maintenance/green TG). Operations that don't need the TG ARN (e.g. listing
-        # or deleting rules by tag) still work correctly with target_group_arn=None.
-        target_group_arn = None
-
     return Environment(
         workspace=workspace,
         color=color,
@@ -82,5 +72,7 @@ def __build_environment(color, target_group_type, cluster_name, workspace):
         cluster_name=cluster_name,
         ecs_client=ecs_client,
         ecs_services=[s for s in ecs_services if s],
-        target_group_arn=target_group_arn
+        target_group_arn=alb_manager.get_target_group_with_type_color_and_workspace(
+            target_group_type, color, workspace
+        )
     )

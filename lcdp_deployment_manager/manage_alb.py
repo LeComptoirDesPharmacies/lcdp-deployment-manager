@@ -140,8 +140,24 @@ def get_uncolored_rules(listener):
                 is_colored = any(__is_colored_host_header_value(v) for v in host['Values'])
 
         if not is_colored:
-          uncolored_rules.append(rule)
+            uncolored_rules.append(rule)
+
+    non_default_arns = [r['RuleArn'] for r in uncolored_rules if not r['IsDefault']]
+    tags_by_arn = __batch_describe_tags(non_default_arns)
+    for rule in uncolored_rules:
+        rule['Tags'] = tags_by_arn.get(rule.get('RuleArn', ''), [])
+
     return uncolored_rules
+
+
+def __batch_describe_tags(arns):
+    tags_by_arn = {}
+    for i in range(0, len(arns), 20):
+        chunk = arns[i:i + 20]
+        response = elbv2_client.describe_tags(ResourceArns=chunk)
+        for desc in response['TagDescriptions']:
+            tags_by_arn[desc['ResourceArn']] = desc['Tags']
+    return tags_by_arn
 
 
 def __is_colored_host_header_value(value):

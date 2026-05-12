@@ -47,13 +47,12 @@ class DeploymentManager:
         }
 
     def get_type(self, rule):
-        type_holder = self.http_listener['ListenerArn'] if rule['IsDefault'] else rule['RuleArn']
-        target_type = alb_manager.get_type_from_resource(type_holder)
-
-        if target_type:
-            return target_type
-        else:
-            return None
+        if rule['IsDefault']:
+            return alb_manager.get_type_from_resource(self.http_listener['ListenerArn'])
+        for tag in rule.get('Tags', []):
+            if tag['Key'] == constant.TARGET_GROUP_TYPE_TAG_NAME:
+                return tag['Value']
+        return None
 
     def get_active_environment(self):
         """Retourne l'environnement qui recoit actuellement le trafic."""
