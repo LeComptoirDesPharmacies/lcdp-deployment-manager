@@ -1,0 +1,37 @@
+name: Back merge
+
+# Back-merge master → develop pour les pushs sur master HORS release
+# (typiquement un hotfix mergé directement sur master).
+#
+# Les releases sont gérées par perform-release.yml, qui lance le bot en step inline.
+# Pas de doublon : perform-release pousse master avec le GITHUB_TOKEN intégré, et un
+# push fait avec ce token ne déclenche AUCUN workflow (anti-récursion GitHub). Donc
+# ce workflow ne se déclenche QUE sur les pushs "humains" (hotfix), jamais en release.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:        # déclenchement manuel de secours
+
+permissions:
+  contents: read            # le bot fait ses writes via son propre token App
+
+jobs:
+  back-merge:
+    name: Back merge master into develop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0              # toutes les branches divergentes
+          persist-credentials: false  # le bot gère l'auth git via son token App
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Back merge master into develop
+        env:
+          GITHUB_APP_ID: ${{ vars.LCDP_BACKMERGE_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.LCDP_BACKMERGE_APP_PRIVATE_KEY }}
+          AUTO_MERGE_TARGET_PATTERNS: "develop"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uvx lcdp-back-merge

@@ -1,7 +1,7 @@
 name: perform-release
 
 # Must be triggered from a release/v* branch.
-# merge into master → tag → delete release branch → merge master into develop → publish PyPI.
+# merge into master → tag → delete release branch → back-merge master into develop (bot) → publish PyPI.
 # setup.py stays at '0.0.0' in git — the real version is injected only for the PyPI build.
 
 on:
@@ -59,11 +59,23 @@ jobs:
       - name: Delete release branch
         run: git push origin --delete "${{ steps.version.outputs.release_branch }}"
 
-      - name: Merge master back into develop
-        run: |
-          git checkout develop
-          git merge master -m "Merge master into develop after release ${{ steps.version.outputs.new_version }}"
-          git push origin develop
+      # Back-merge master → develop via le bot lcdp-back-merge (PR + résolution IA
+      # des conflits) plutôt qu'un `git merge` brut qui ferait planter la release
+      # au moindre conflit. Le bot crée une PR auto-merge/master-into-develop et
+      # l'auto-merge si le merge est propre (ou high-confidence après IA).
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Back merge master into develop
+        env:
+          # Le workflow est déclenché sur release/vX → on FORCE master comme branche
+          # source (le bot lit la source depuis GITHUB_REF_NAME).
+          GITHUB_REF_NAME: master
+          GITHUB_APP_ID: ${{ vars.LCDP_BACKMERGE_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.LCDP_BACKMERGE_APP_PRIVATE_KEY }}
+          AUTO_MERGE_TARGET_PATTERNS: "develop"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uvx lcdp-back-merge
 
       - name: Checkout tag for building
         run: git checkout "${{ steps.version.outputs.new_version }}"
