@@ -1,0 +1,11 @@
+# Supply-chain policy (LDS-5825), read by uv — committed = repo-enforced (CI + local).
+#
+# This is a publisher repo: the only CI install is the build tooling (setuptools/wheel/
+# twine). exclude-newer still applies the "< 1 week" age gate to them (uv picks the
+# latest release older than a week — safe, never breaks the build). Malware scanning is
+# added by safe-chain (aikido-uv). The internal-package exemptions are kept for a uniform
+# policy across repos (no-op here since no internal package is installed at build time).
+required-version = ">=0.11.22"
+index-strategy = "unsafe-first-match"
+exclude-newer = "1 week"
+exclude-newer-package = { lcdp-api = false, lcdp-avro-to-python = false, lcdp-back-merge = false, lcdp-boto3-utils = false, lcdp-deployment-manager = false, lcdp-fastapi-utils = false, lcdp-flask-utils = false, lcdp-kafka-utils = false, lcdp-logging-utils = false, lcdp-postgres-utils = false, lcdp-sqlalchemy-utils = false, python-avro-generator = false, python-fastapi-rest-server-codegen = false, python-flask-rest-server-codegen = false, python-rest-client-codegen = false }

@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # Supply-chain policy (LDS-5825): 1-week age gate via uv.toml; aikido-uv scans malware.
+    env:
+      AIKIDO_SCAN_TIMEOUT_MS: "180000"
     steps:
       - name: Validate branch name
         run: |
@@ -83,8 +86,12 @@ jobs:
       - name: Inject version into setup.py (no commit)
         run: sed -i "s/version='[^']*',/version='${{ steps.version.outputs.version_number }}',/" setup.py
 
+      - name: Install safe-chain
+        run: npm install -g @aikidosec/safe-chain@1.5.7
+
       - name: Install setuptools, wheel and twine
-        run: python -m pip install setuptools wheel twine
+        # uv (set up above) applies the 1-week age gate (uv.toml); aikido-uv scans for malware.
+        run: aikido-uv pip install --system setuptools wheel twine
 
       - name: Build a binary wheel and source directory
         run: python setup.py sdist bdist_wheel
