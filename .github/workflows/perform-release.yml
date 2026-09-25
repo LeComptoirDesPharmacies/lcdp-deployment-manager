@@ -79,9 +79,9 @@ jobs:
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.LCDP_BACKMERGE_APP_PRIVATE_KEY }}
           AUTO_MERGE_TARGET_PATTERNS: "develop"
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        # >=1.0.5 : première version qui lit AUTO_MERGE_SOURCE_BRANCH (une plus
-        # ancienne l'ignorerait sans rien dire).
-        run: uvx --from 'lcdp-back-merge>=1.0.5' lcdp-back-merge
+        # @latest : force la résolution de la dernière version (>= 1.0.5, la
+        # première qui lit AUTO_MERGE_SOURCE_BRANCH) plutôt qu'une version en cache.
+        run: uvx lcdp-back-merge@latest
 
       - name: Checkout tag for building
         run: git checkout "${{ steps.version.outputs.new_version }}"
