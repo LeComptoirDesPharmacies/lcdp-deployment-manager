@@ -72,13 +72,16 @@ jobs:
       - name: Back merge master into develop
         env:
           # Le workflow est déclenché sur release/vX → on FORCE master comme branche
-          # source (le bot lit la source depuis GITHUB_REF_NAME).
-          GITHUB_REF_NAME: master
+          # source. Pas via GITHUB_REF_NAME : Actions ignore en silence la surcharge
+          # des variables GITHUB_* (LDS-6139).
+          AUTO_MERGE_SOURCE_BRANCH: master
           GITHUB_APP_ID: ${{ vars.LCDP_BACKMERGE_APP_ID }}
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.LCDP_BACKMERGE_APP_PRIVATE_KEY }}
           AUTO_MERGE_TARGET_PATTERNS: "develop"
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: uvx lcdp-back-merge
+        # @latest : force la résolution de la dernière version (>= 1.0.5, la
+        # première qui lit AUTO_MERGE_SOURCE_BRANCH) plutôt qu'une version en cache.
+        run: uvx lcdp-back-merge@latest
 
       - name: Checkout tag for building
         run: git checkout "${{ steps.version.outputs.new_version }}"
